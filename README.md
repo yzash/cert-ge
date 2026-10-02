@@ -49,3 +49,7 @@ pnpm demo:check -- http://localhost:8081 3   # Playwright run-of-show, three cle
 ## LIVE mode
 
 Set the variables in `apps/bff/.env.example`, run `pnpm dev:bff`, then in the app: Me → AI mode LIVE and BFF URL. Without a Google tenant every LIVE call falls back to the DEMO answer with a visible badge (`node scripts/check-live-fallback.mjs`). See ADR-0003 for what is wired and what still needs a tenant to test.
+
+## Deploying (Vercel)
+
+One project, Root Directory `apps/bff`, keep "Include files outside the root directory" on. `pnpm build` in `apps/bff` exports the Expo web app into `public/` and builds the API, so the same URL serves the demo (`/`, `/hq`) and `/api/v1/*`. Use `pnpm --filter bff build:api` for an API-only build. (`apps/mobile/vercel.json` deploys the app alone as a static site, if preferred.)

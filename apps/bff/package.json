@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 8787",
-    "build": "next build",
+    "build": "pnpm run build:app && next build",
     "start": "next start -p ${PORT:-8787}",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:app": "pnpm --filter mobile build:web && rm -rf public && cp -r ../mobile/dist public",
+    "build:api": "next build"
   },
   "dependencies": {
     "@mozart/actions": "workspace:*",
