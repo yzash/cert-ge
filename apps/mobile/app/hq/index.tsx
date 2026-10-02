@@ -45,9 +45,11 @@ function HQBody({ wide, width }: { wide: boolean; width: number }) {
   const [showAudit, setShowAudit] = useState(false);
   const k = kpis(s);
 
+  // newest activity first, so a log forwarded tonight surfaces at the top
+  const latest = (t: Theme) => Math.max(0, ...s.frictionLogs.filter((f) => t.logIds.includes(f.id)).map((f) => Date.parse(f.updatedAt)));
   const themes = useMemo(() => s.themes
     .filter((t) => (site === 'all' || t.siteIds.includes(site)) && (cat === 'all' || t.category === cat))
-    .sort((a, b) => Number(!!a.decision) - Number(!!b.decision) || b.logIds.length - a.logIds.length), [s.themes, site, cat]);
+    .sort((a, b) => Number(!!a.decision) - Number(!!b.decision) || latest(b) - latest(a) || b.logIds.length - a.logIds.length), [s.themes, s.frictionLogs, site, cat]);
   const current = s.themes.find((t) => t.id === (selected ?? themes[0]?.id));
   const totalLogs = s.frictionLogs.filter((f) => f.routedTo === 'hq').length;
 

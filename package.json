@@ -10,7 +10,7 @@
     "build:web": "pnpm --filter mobile build:web",
     "build:bff": "pnpm --filter bff build",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm --filter @mozart/evals test && pnpm --filter @mozart/actions test",
+    "test": "pnpm --filter @mozart/actions test && pnpm --filter @mozart/evals test",
     "evals": "pnpm --filter @mozart/evals eval",
     "demo:check": "node scripts/run-of-show.mjs"
   },

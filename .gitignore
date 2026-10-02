@@ -13,3 +13,5 @@ apps/mobile/android/
 test-results/
 playwright-report/
 .data/
+results.json
+demo-shots/
