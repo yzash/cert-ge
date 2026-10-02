@@ -13,7 +13,7 @@
     "@mozart/ai": "workspace:*",
     "@mozart/fixtures": "workspace:*",
     "@mozart/schema": "workspace:*",
-    "next": "15.5.4",
+    "next": "15.5.27",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "zod": "^4.1.0"
