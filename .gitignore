@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.next/
+out/
+*.log
+.env
+.env.local
+*.tsbuildinfo
+apps/mobile/ios/
+apps/mobile/android/
+test-results/
+playwright-report/
+.data/

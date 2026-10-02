@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Mozart Frontline",
+    "slug": "mozart-frontline",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mozartfrontline",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#07111F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.certisgroup.mozartfrontline.demo"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0B2A4A"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.certisgroup.mozartfrontline.demo",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Mozart Frontline",
+      "themeColor": "#0B2A4A",
+      "backgroundColor": "#07111F"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Mozart Frontline uses the camera to verify equipment state against the SOP."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

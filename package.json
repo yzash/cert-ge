@@ -1,0 +1,28 @@
+{
+  "name": "mozart-frontline",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Mozart Frontline — AI-first app for Certis frontline officers (MVP, DEMO + LIVE modes)",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "pnpm --filter mobile web",
+    "dev:bff": "pnpm --filter bff dev",
+    "build:web": "pnpm --filter mobile build:web",
+    "build:bff": "pnpm --filter bff build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm --filter @mozart/evals test && pnpm --filter @mozart/actions test",
+    "evals": "pnpm --filter @mozart/evals eval",
+    "demo:check": "node scripts/run-of-show.mjs"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
+  "devDependencies": {
+    "playwright": "1.55.0",
+    "serve": "^14.2.6"
+  }
+}
