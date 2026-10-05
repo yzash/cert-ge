@@ -7,3 +7,5 @@ export * from './clips';
 export * from './images';
 export * from './friction';
 export * from './seed';
+export * from './hr';
+export { robots, buildRobotState, robotEventPresets } from './robots';

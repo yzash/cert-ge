@@ -104,3 +104,39 @@ export function kpis(s: DemoState) {
     daysToDecision,
   };
 }
+
+// ---------------- corporate services ----------------
+
+export function leaveSummary(s: DemoState, officerId: string) {
+  return s.leaveBalances.filter((b) => b.officerId === officerId).map((b) => {
+    const pending = s.leaveRequests.filter((r) => r.officerId === officerId && r.type === b.type && r.status === 'pending').reduce((a, r) => a + r.days, 0);
+    return { ...b, pending, remaining: b.entitled - b.taken - pending };
+  });
+}
+
+export function latestPayslip(s: DemoState, officerId: string) {
+  return s.payslips.filter((p) => p.officerId === officerId).sort((a, b) => b.period.localeCompare(a.period))[0];
+}
+
+export function upcomingRoster(s: DemoState, officerId: string, days = 14) {
+  return s.roster.filter((r) => r.officerId === officerId).sort((a, b) => a.date.localeCompare(b.date)).slice(0, days);
+}
+
+export function licenceStatus(expiresOn: string, now = Date.now()): { daysLeft: number; status: 'valid' | 'expiring' | 'expired' } {
+  const daysLeft = Math.ceil((Date.parse(expiresOn) - now) / 86_400_000);
+  return { daysLeft, status: daysLeft < 0 ? 'expired' : daysLeft <= 60 ? 'expiring' : 'valid' };
+}
+
+/** Everything waiting on a supervisor: closures, leave, claims, swaps, robot events. */
+export function approvalsFor(s: DemoState, supervisorId: string) {
+  const sup = s.officers.find((o) => o.id === supervisorId);
+  if (!sup) return { closures: [], leave: [], claims: [], swaps: [], robotEvents: [] };
+  const mine = new Set(s.officers.filter((o) => o.siteId === sup.siteId).map((o) => o.id));
+  return {
+    closures: s.workOrders.filter((w) => w.siteId === sup.siteId && w.status === 'pending_approval'),
+    leave: s.leaveRequests.filter((r) => mine.has(r.officerId) && r.status === 'pending'),
+    claims: s.claims.filter((c) => mine.has(c.officerId) && c.status === 'submitted'),
+    swaps: s.shiftSwaps.filter((w) => mine.has(w.officerId) && w.status === 'pending'),
+    robotEvents: s.robotEvents.filter((e) => s.robots.find((r) => r.id === e.robotId)?.siteId === sup.siteId && e.status === 'open'),
+  };
+}

@@ -3,9 +3,11 @@
  * (optimistic, offline) and on the server (/sync). Enforces the no-write-without-confirm invariant.
  */
 import type {
+  LeaveRequest,
   AuditEntry, BriefingItem, DemoState, Doc, Incident, Notification, Sop, Theme, WorkOrder, WorkOrderStep,
 } from '@mozart/schema';
 import { CONFIRM_REQUIRED, type Command } from './commands';
+import { robotPose } from './robots';
 
 export class ActionRejected extends Error {
   constructor(public code: string, message: string) {
@@ -135,6 +137,10 @@ export function apply(state: DemoState, c: Command): DemoState {
         confirmedAt: c.confirmedAt,
         steps: w.steps.map((st, i) => (i === w.steps.length - 1 ? { ...st, done: true, doneAt: at } : st)),
       }));
+      if (wo.source === 'robot' && wo.sourceRecordId) {
+        s.robotEvents = s.robotEvents.map((e) => (e.id === wo.sourceRecordId ? { ...e, status: 'resolved' } : e));
+        s = resumeRobotFor(s, wo.sourceRecordId, Date.parse(at));
+      }
       for (const sup of supervisorsOf(s, wo.siteId)) s = notify(s, { officerId: sup, kind: 'closure', title: 'Closure to approve', body: `${name(s, c.actorId)} closed ${wo.id}: ${wo.title}`, at, link: `/wo/${wo.id}` });
       s = audit(s, { at, kind: 'mozart_write', feature: 'wo.close', officerId: c.actorId, recordId: wo.id, confirmedAt: c.confirmedAt });
       break;
@@ -380,12 +386,193 @@ export function apply(state: DemoState, c: Command): DemoState {
       s = audit(s, { ...c.entry, at });
       break;
 
+
+    // ---------------- corporate services ----------------
+    case 'leave.apply': {
+      const r = c.request;
+      if (r.officerId !== c.actorId) throw new ActionRejected('forbidden', 'You can only apply for your own leave');
+      if (r.from > r.to || r.days <= 0) throw new ActionRejected('incomplete', 'Check the leave dates');
+      const bal = s.leaveBalances.find((b) => b.officerId === r.officerId && b.type === r.type);
+      const pending = s.leaveRequests.filter((x) => x.officerId === r.officerId && x.type === r.type && x.status === 'pending').reduce((a, x) => a + x.days, 0);
+      if (bal && r.type !== 'unpaid' && bal.entitled - bal.taken - pending < r.days) {
+        throw new ActionRejected('insufficient_balance', `Not enough ${r.type} leave: ${bal.entitled - bal.taken - pending} day(s) left`);
+      }
+      s.leaveRequests = [{ ...r, status: 'pending', createdAt: at, confirmedBy: c.confirmedBy, confirmedAt: c.confirmedAt }, ...s.leaveRequests];
+      for (const sup of supervisorsOf(s, officerSite(s, r.officerId))) s = notify(s, { officerId: sup, kind: 'hr', title: 'Leave to approve', body: `${name(s, r.officerId)}: ${r.days} day(s) ${r.type} leave, ${r.from}${r.to !== r.from ? ` to ${r.to}` : ''}`, at });
+      s = audit(s, { at, kind: 'mozart_write', feature: 'hr.leave.apply', officerId: c.actorId, recordId: r.id, confirmedAt: c.confirmedAt });
+      break;
+    }
+    case 'leave.decide': {
+      requireRole(s, c.actorId, ['supervisor', 'hq']);
+      let decided: LeaveRequest | undefined;
+      s.leaveRequests = upd(s.leaveRequests, c.requestId, (r) => {
+        if (r.status !== 'pending') throw new ActionRejected('bad_state', 'This request was already decided');
+        decided = { ...r, status: c.decision, approverId: c.actorId, decidedAt: at, note: c.note };
+        return decided;
+      });
+      if (c.decision === 'approved') s.leaveBalances = s.leaveBalances.map((b) => (b.officerId === decided!.officerId && b.type === decided!.type ? { ...b, taken: b.taken + decided!.days } : b));
+      s = notify(s, { officerId: decided!.officerId, kind: 'hr', title: `Leave ${c.decision}`, body: `${decided!.days} day(s) ${decided!.type} leave from ${decided!.from}${c.note ? `: ${c.note}` : ''}`, at, link: '/v2/requests' });
+      s = audit(s, { at, kind: 'mozart_write', feature: 'hr.leave.decide', officerId: c.actorId, recordId: c.requestId, confirmedAt: c.confirmedAt });
+      break;
+    }
+    case 'leave.cancel': {
+      let was: LeaveRequest | undefined;
+      s.leaveRequests = upd(s.leaveRequests, c.requestId, (r) => {
+        if (r.officerId !== c.actorId) throw new ActionRejected('forbidden', 'Not your request');
+        was = r;
+        return { ...r, status: 'cancelled', decidedAt: at };
+      });
+      if (was?.status === 'approved') s.leaveBalances = s.leaveBalances.map((b) => (b.officerId === was!.officerId && b.type === was!.type ? { ...b, taken: Math.max(0, b.taken - was!.days) } : b));
+      break;
+    }
+    case 'claim.submit': {
+      const cl = c.claim;
+      if (cl.officerId !== c.actorId) throw new ActionRejected('forbidden', 'You can only claim for yourself');
+      if (!(cl.amount > 0)) throw new ActionRejected('incomplete', 'Enter the claim amount');
+      s.claims = [{ ...cl, status: 'submitted', createdAt: at, confirmedBy: c.confirmedBy, confirmedAt: c.confirmedAt }, ...s.claims];
+      for (const sup of supervisorsOf(s, officerSite(s, cl.officerId))) s = notify(s, { officerId: sup, kind: 'hr', title: 'Claim to approve', body: `${name(s, cl.officerId)}: $${cl.amount.toFixed(2)} ${cl.type}`, at });
+      s = audit(s, { at, kind: 'mozart_write', feature: 'hr.claim.submit', officerId: c.actorId, recordId: cl.id, confirmedAt: c.confirmedAt });
+      break;
+    }
+    case 'claim.decide': {
+      requireRole(s, c.actorId, ['supervisor', 'hq']);
+      s.claims = upd(s.claims, c.claimId, (x) => {
+        if (x.status !== 'submitted') throw new ActionRejected('bad_state', 'This claim was already decided');
+        return { ...x, status: c.decision, approverId: c.actorId, decidedAt: at };
+      });
+      const cl = s.claims.find((x) => x.id === c.claimId)!;
+      s = notify(s, { officerId: cl.officerId, kind: 'hr', title: `Claim ${c.decision}`, body: `$${cl.amount.toFixed(2)} ${cl.type}${c.decision === 'approved' ? ', paid with your next salary' : ''}`, at, link: '/v2/requests' });
+      s = audit(s, { at, kind: 'mozart_write', feature: 'hr.claim.decide', officerId: c.actorId, recordId: c.claimId, confirmedAt: c.confirmedAt });
+      break;
+    }
+    case 'swap.request': {
+      const sw = c.swap;
+      if (sw.officerId !== c.actorId) throw new ActionRejected('forbidden', 'You can only swap your own shift');
+      s.shiftSwaps = [{ ...sw, status: 'pending', createdAt: at, confirmedBy: c.confirmedBy, confirmedAt: c.confirmedAt }, ...s.shiftSwaps];
+      for (const sup of supervisorsOf(s, officerSite(s, sw.officerId))) s = notify(s, { officerId: sup, kind: 'hr', title: 'Shift swap to approve', body: `${name(s, sw.officerId)} ↔ ${name(s, sw.withOfficerId)} on ${sw.date}`, at });
+      s = notify(s, { officerId: sw.withOfficerId, kind: 'hr', title: 'Shift swap request', body: `${name(s, sw.officerId)} asked to swap shifts with you on ${sw.date}`, at });
+      break;
+    }
+    case 'swap.decide': {
+      requireRole(s, c.actorId, ['supervisor', 'hq']);
+      s.shiftSwaps = upd(s.shiftSwaps, c.swapId, (x) => ({ ...x, status: c.decision, approverId: c.actorId, decidedAt: at }));
+      const sw = s.shiftSwaps.find((x) => x.id === c.swapId)!;
+      if (c.decision === 'approved') {
+        const a = s.roster.find((r) => r.officerId === sw.officerId && r.date === sw.date);
+        const b = s.roster.find((r) => r.officerId === sw.withOfficerId && r.date === sw.date);
+        s.roster = s.roster.map((r) => (r === a && b ? { ...r, shiftId: b.shiftId } : r === b && a ? { ...r, shiftId: a.shiftId } : r));
+      }
+      for (const o of [sw.officerId, sw.withOfficerId]) s = notify(s, { officerId: o, kind: 'hr', title: `Shift swap ${c.decision}`, body: `${sw.date}: ${name(s, sw.officerId)} ↔ ${name(s, sw.withOfficerId)}`, at });
+      break;
+    }
+    case 'licence.renew': {
+      s.licences = upd(s.licences, c.licenceId, (l) => {
+        if (l.officerId !== c.actorId) throw new ActionRejected('forbidden', 'Not your licence');
+        return { ...l, renewalRequestedAt: at };
+      });
+      const l = s.licences.find((x) => x.id === c.licenceId)!;
+      s = notify(s, { officerId: c.actorId, kind: 'hr', title: 'Renewal requested', body: `HR will book your refresher training for ${l.name} and confirm the date in the app.`, at, link: '/v2/requests' });
+      s = audit(s, { at, kind: 'mozart_write', feature: 'hr.licence.renew', officerId: c.actorId, recordId: l.id, confirmedAt: c.confirmedAt });
+      break;
+    }
+
+    // ---------------- robots ----------------
+    case 'robot.command': {
+      const robot = s.robots.find((r) => r.id === c.robotId);
+      if (!robot) throw new ActionRejected('not_found', `Robot ${c.robotId} not found`);
+      const now = Date.parse(at);
+      const cur = s.robotMissions.filter((m) => m.robotId === robot.id && (m.status === 'active' || m.status === 'paused')).sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+      if (c.action === 'pause') {
+        if (!cur || cur.status !== 'active') throw new ActionRejected('bad_state', `${robot.name} has no running mission`);
+        s.robotMissions = upd(s.robotMissions, cur.id, (m) => ({ ...m, status: 'paused', pausedAt: at, pausedReason: 'Paused by operator' }));
+      } else if (c.action === 'resume') {
+        if (!cur || cur.status !== 'paused') throw new ActionRejected('bad_state', `${robot.name} is not paused`);
+        s.robotMissions = upd(s.robotMissions, cur.id, (m) => ({ ...m, status: 'active', pausedMs: (m.pausedMs ?? 0) + Math.max(0, now - Date.parse(m.pausedAt ?? at)), pausedAt: undefined, pausedReason: undefined }));
+      } else {
+        const pose = robotPose(s, robot.id, now);
+        if (cur) s.robotMissions = upd(s.robotMissions, cur.id, (m) => ({ ...m, status: 'aborted' }));
+        const kind = c.action === 'return_dock' ? 'return' : c.action === 'patrol' ? 'patrol' : c.action === 'clean' ? 'clean' : 'goto';
+        if (kind === 'patrol' && robot.kind !== 'patrol') throw new ActionRejected('bad_state', `${robot.name} is a cleaning robot`);
+        if (kind === 'clean' && robot.kind !== 'cleaning') throw new ActionRejected('bad_state', `${robot.name} is a patrol robot`);
+        const waypoints = kind === 'return' ? [robot.dockZoneId] : c.zoneIds ?? [];
+        if (!waypoints.length) throw new ActionRejected('incomplete', 'Pick where the robot should go');
+        s.robotMissions = [{
+          id: c.missionId, robotId: robot.id, kind, waypoints, loop: kind === 'patrol' || kind === 'clean', startedAt: at, status: 'active', pausedMs: 0,
+          from: { x: pose.x, y: pose.y }, createdBy: c.actorId, confirmedBy: c.confirmedBy, confirmedAt: c.confirmedAt,
+        }, ...s.robotMissions];
+      }
+      s = audit(s, { at, kind: 'mozart_write', feature: `robot.${c.action}`, officerId: c.actorId, recordId: robot.id, confirmedAt: c.confirmedAt, detail: c.zoneIds?.join(',') });
+      break;
+    }
+    case 'robot.event': {
+      const e = c.event;
+      s.robotEvents = [{ ...e, at, status: 'open' }, ...s.robotEvents.filter((x) => x.id !== e.id)];
+      const robot = s.robots.find((r) => r.id === e.robotId);
+      const cur = s.robotMissions.find((m) => m.robotId === e.robotId && m.status === 'active');
+      if (cur && e.kind === 'detection' && robot?.kind === 'cleaning') {
+        s.robotMissions = upd(s.robotMissions, cur.id, (m) => ({ ...m, status: 'paused', pausedAt: at, pausedReason: `Holding at ${e.label.toLowerCase()}` }));
+      }
+      if (cur && e.kind === 'low_battery') {
+        s.robotMissions = upd(s.robotMissions, cur.id, (m) => ({ ...m, status: 'aborted' }));
+        s.robotMissions = [{ id: `${e.id}-ret`, robotId: e.robotId, kind: 'return', waypoints: [robot!.dockZoneId], loop: false, startedAt: at, status: 'active', pausedMs: 0, createdBy: 'system' }, ...s.robotMissions];
+      }
+      const site = robot?.siteId ?? 'CNP';
+      for (const sup of supervisorsOf(s, site)) s = notify(s, { officerId: sup, kind: 'robot', title: `${robot?.name ?? e.robotId}: ${e.label}`, body: e.detail, at, link: '/v2/control' });
+      break;
+    }
+    case 'robot.task': {
+      const e = s.robotEvents.find((x) => x.id === c.eventId);
+      if (!e) throw new ActionRejected('not_found', `Event ${c.eventId} not found`);
+      if (e.status !== 'open') throw new ActionRejected('bad_state', 'This event is already handled');
+      const robot = s.robots.find((r) => r.id === e.robotId)!;
+      const wo: WorkOrder = {
+        id: c.recordId, type: 'corrective', category: e.suggestedSopId?.startsWith('SOP-HAZ') ? 'Hazard' : 'Security',
+        title: `${e.label} (${robot.name})`, description: e.detail, status: 'assignment', priority: e.severity, siteId: robot.siteId, zoneId: e.zoneId,
+        sopId: e.suggestedSopId, assigneeId: c.officerId,
+        steps: [
+          { id: 's1', label: `Go to the location (${robot.kind === 'cleaning' ? 'robot is holding position' : 'robot is watching'})`, done: false, notes: [], attachments: [] },
+          { id: 's2', label: 'Make safe per SOP', done: false, notes: [], attachments: [] },
+          { id: 's3', label: 'Close the job with a photo', done: false, notes: [], attachments: [] },
+        ],
+        attachments: e.imageUri ? [{ id: `att-${e.id}`, kind: 'fixtureImage', uri: e.imageUri, caption: `${robot.name} camera`, at: e.at }] : [],
+        slaDue: new Date(Date.parse(at) + (e.severity === 'high' || e.severity === 'critical' ? 30 : 120) * 60_000).toISOString(),
+        createdAt: at, source: 'robot', sourceRecordId: e.id, confirmedBy: c.confirmedBy, confirmedAt: c.confirmedAt,
+      };
+      s.workOrders = [wo, ...s.workOrders];
+      s.robotEvents = upd(s.robotEvents, e.id, (x) => ({ ...x, status: 'tasked', workOrderId: wo.id, assigneeId: c.officerId }));
+      s = notify(s, { officerId: c.officerId, kind: 'robot', title: `${robot.name} needs you`, body: `${e.label}: ${e.detail}`, at, link: `/v2/chat` });
+      s = audit(s, { at, kind: 'mozart_write', feature: 'robot.task', officerId: c.actorId, recordId: wo.id, confirmedAt: c.confirmedAt });
+      break;
+    }
+    case 'robot.dismiss': {
+      s.robotEvents = upd(s.robotEvents, c.eventId, (x) => ({ ...x, status: 'dismissed' }));
+      s = resumeRobotFor(s, c.eventId, Date.parse(at));
+      break;
+    }
+
     default: {
       const never: never = c;
       throw new ActionRejected('unknown', `Unknown command ${(never as Command).type}`);
     }
   }
   return s;
+}
+
+function requireRole(s: Draft, id: string, roles: string[]) {
+  const o = s.officers.find((x) => x.id === id);
+  if (!o || !roles.includes(o.role)) throw new ActionRejected('forbidden', 'Only a supervisor can decide this');
+}
+
+/** A robot that was holding position for an event goes back to work once the event is handled. */
+function resumeRobotFor(s: Draft, eventId: string, now: number): Draft {
+  const e = s.robotEvents.find((x) => x.id === eventId);
+  if (!e) return s;
+  return {
+    ...s,
+    robotMissions: s.robotMissions.map((m) => (m.robotId === e.robotId && m.status === 'paused' && m.pausedReason?.startsWith('Holding')
+      ? { ...m, status: 'active', pausedMs: (m.pausedMs ?? 0) + Math.max(0, now - Date.parse(m.pausedAt ?? new Date(now).toISOString())), pausedAt: undefined, pausedReason: undefined }
+      : m)),
+  };
 }
 
 export function hasEvidence(w: WorkOrder): boolean {

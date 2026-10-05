@@ -18,7 +18,41 @@ const ROUTES: Partial<Record<Command['type'], (c: any) => { path: string; body: 
   'briefing.ack': (c) => ({ path: `/notices/${c.itemId}/ack`, body: {} }),
   'hq.decide': (c) => ({ path: '/sop-decisions', body: { themeId: c.themeId, decision: c.decision, note: c.note, sopEdit: c.sopEdit } }),
   'handover.sign': (c) => ({ path: '/handovers', body: c.handover }),
+  // Robotics fleet (Mozart robotics coordination; endpoint shapes assumed)
+  'robot.command': (c) => ({ path: `/robots/${c.robotId}/commands`, body: { action: c.action, zoneIds: c.zoneIds, missionId: c.missionId } }),
+  'robot.task': (c) => ({ path: '/work-orders', body: { externalId: c.recordId, fromRobotEvent: c.eventId, assigneeId: c.officerId } }),
 };
+
+/**
+ * In-house HR system (leave, claims, roster, licences). Integration assumed: REST with the
+ * officer's identity, idempotent POSTs. Only confirmed commands are sent.
+ */
+const HR_ROUTES: Partial<Record<Command['type'], (c: any) => { path: string; body: unknown }>> = {
+  'leave.apply': (c) => ({ path: '/leave-requests', body: c.request }),
+  'leave.decide': (c) => ({ path: `/leave-requests/${c.requestId}/decision`, body: { decision: c.decision, note: c.note } }),
+  'claim.submit': (c) => ({ path: '/claims', body: c.claim }),
+  'claim.decide': (c) => ({ path: `/claims/${c.claimId}/decision`, body: { decision: c.decision, note: c.note } }),
+  'swap.request': (c) => ({ path: '/roster/swaps', body: c.swap }),
+  'swap.decide': (c) => ({ path: `/roster/swaps/${c.swapId}/decision`, body: { decision: c.decision } }),
+  'licence.renew': (c) => ({ path: `/licences/${c.licenceId}/renewal`, body: {} }),
+};
+
+export function createHrClient(baseUrl: string, apiKey?: string) {
+  return {
+    async write(c: Command): Promise<MozartWriteResult> {
+      const route = HR_ROUTES[c.type];
+      if (!route) return { ok: true, status: 0, skipped: 'not an HR record' };
+      if (!c.confirmedBy || !c.confirmedAt) return { ok: false, status: 0, skipped: 'unconfirmed' };
+      const { path, body } = route(c);
+      const res = await fetch(baseUrl.replace(/\/$/, '') + path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'idempotency-key': c.key, 'x-acting-officer': c.actorId, ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
+        body: JSON.stringify(body),
+      });
+      return { ok: res.ok, status: res.status, path };
+    },
+  };
+}
 
 export function createMozartClient(baseUrl: string, apiKey?: string) {
   return {

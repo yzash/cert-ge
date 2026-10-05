@@ -22,6 +22,8 @@ export interface Settings {
   aiMode: Mode;
   backend: 'local' | 'bff';
   bffUrl: string;
+  /** v2 (chat-first) appearance; light by default, dark for night shift */
+  v2Theme: 'light' | 'dark';
 }
 
 export interface Session {
@@ -82,6 +84,7 @@ const defaultSettings: Settings = {
   aiMode: 'DEMO',
   backend: 'local',
   bffUrl: ENV_BFF,
+  v2Theme: 'light',
 };
 
 let server: Server = createLocalServer();

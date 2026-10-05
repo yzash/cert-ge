@@ -1,4 +1,5 @@
 import type {
+  Claim, LeaveRequest, RobotEvent, ShiftSwap,
   Attachment, EmergencyAlert, FrictionLog, Handover, ReportDraft, ThemeDecision, Verdict, Verification, VoiceReport, WorkOrderStatus, AuditEntry,
 } from '@mozart/schema';
 
@@ -43,7 +44,23 @@ export type CommandBody =
   | { type: 'tour.note'; tourId: string; checkpointId: string; note: string; report?: VoiceReport }
   | { type: 'ask.escalate'; question: string; siteId: string }
   | { type: 'notification.read'; ids: string[] }
-  | { type: 'audit.ai'; entry: Omit<AuditEntry, 'id' | 'at'> };
+  | { type: 'audit.ai'; entry: Omit<AuditEntry, 'id' | 'at'> }
+  // corporate services (in-house HR system)
+  | { type: 'leave.apply'; request: LeaveRequest }
+  | { type: 'leave.decide'; requestId: string; decision: 'approved' | 'rejected'; note?: string }
+  | { type: 'leave.cancel'; requestId: string }
+  | { type: 'claim.submit'; claim: Claim }
+  | { type: 'claim.decide'; claimId: string; decision: 'approved' | 'rejected'; note?: string }
+  | { type: 'swap.request'; swap: ShiftSwap }
+  | { type: 'swap.decide'; swapId: string; decision: 'approved' | 'rejected' }
+  | { type: 'licence.renew'; licenceId: string }
+  // robots
+  | { type: 'robot.command'; robotId: string; action: RobotAction; zoneIds?: string[]; missionId: string }
+  | { type: 'robot.event'; event: RobotEvent }
+  | { type: 'robot.task'; eventId: string; officerId: string; recordId: string }
+  | { type: 'robot.dismiss'; eventId: string };
+
+export type RobotAction = 'pause' | 'resume' | 'return_dock' | 'patrol' | 'clean' | 'goto';
 
 export type Command = CommandBase & CommandBody;
 export type CommandType = Command['type'];
@@ -51,6 +68,8 @@ export type CommandType = Command['type'];
 /** Commands that write Mozart WorkOrder / Incident / Briefing records need a human confirmation. */
 export const CONFIRM_REQUIRED: ReadonlySet<CommandType> = new Set<CommandType>([
   'report.confirm', 'wo.requestClose', 'closure.approve', 'closure.reject', 'instruction.publish', 'hq.decide', 'handover.sign', 'briefing.ack',
+  // HR writes and robot commands follow the same rule: the AI drafts, a person confirms.
+  'leave.apply', 'leave.decide', 'claim.submit', 'claim.decide', 'swap.request', 'swap.decide', 'licence.renew', 'robot.command', 'robot.task',
 ]);
 
 let counter = 0;

@@ -2,7 +2,7 @@
  * BFF core: one shared Mozart world for every device (in-memory, optionally persisted to disk),
  * the same reducer the app runs offline, and the LIVE / DEMO switch for AI endpoints.
  */
-import { applyAll, createMozartClient, CONFIRM_REQUIRED, type Command } from '@mozart/actions';
+import { applyAll, createHrClient, createMozartClient, CONFIRM_REQUIRED, type Command } from '@mozart/actions';
 import { createDemoProvider, type SiteContext } from '@mozart/ai';
 import { readGoogleConfig, cachedToken, type GoogleConfig } from '@mozart/ai/src/google';
 import { seed } from '@mozart/fixtures';
@@ -40,6 +40,7 @@ export function resetState(): DemoState {
 }
 
 const mozart = process.env.MOZART_API_URL ? createMozartClient(process.env.MOZART_API_URL, process.env.MOZART_API_KEY) : null;
+const hr = process.env.HR_API_URL ? createHrClient(process.env.HR_API_URL, process.env.HR_API_KEY) : null;
 
 /** POST /sync: replay commands in order (idempotent by key), then write confirmed ones to Mozart. */
 export async function applyCommands(cmds: Command[]) {
@@ -47,11 +48,13 @@ export async function applyCommands(cmds: Command[]) {
   const res = applyAll(before, cmds);
   setState(res.state);
   const writes: { key: string; status: number; path?: string }[] = [];
-  if (mozart) {
+  if (mozart || hr) {
     for (const c of cmds) {
       if (!CONFIRM_REQUIRED.has(c.type) || res.rejected.some((r) => r.key === c.key) || before.processedKeys.includes(c.key)) continue;
       try {
-        const w = await mozart.write(c);
+        const target = c.type.startsWith('leave.') || c.type.startsWith('claim.') || c.type.startsWith('swap.') || c.type.startsWith('licence.') ? hr : mozart;
+        if (!target) continue;
+        const w = await target.write(c);
         writes.push({ key: c.key, status: w.status, path: w.path });
       } catch (e) {
         writes.push({ key: c.key, status: -1, path: String(e) });

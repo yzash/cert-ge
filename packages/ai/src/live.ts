@@ -7,6 +7,7 @@ import { AskChunk, ExtractResult, HandoverDraft, VerifyResult } from '@mozart/sc
 import { z } from 'zod';
 import type { AiProvider, AskRequest, ExtractRequest, HandoverRequest, Meta, SopEditDraft, VerifyRequest } from './types';
 import type { ClusterResult } from './types';
+import { Intent } from './router';
 
 const META: Meta = { mode: 'LIVE' };
 
@@ -105,6 +106,11 @@ export function createLiveProvider(opts: { bffUrl: string; token?: string; timeo
     async clusterFriction(log) {
       const r = await post('/hq/cluster', { log }, z.object({ themeId: z.string().nullable(), sentiment: z.number(), confidence: z.number(), model: z.string() }));
       return { ...(r as ClusterResult), meta: META };
+    },
+
+    async routeIntent(text, ctx) {
+      const r = await post('/chat/route', { text, role: ctx.role, officerId: ctx.officerId }, z.object({ intent: Intent, model: z.string() }));
+      return { ...r, meta: META };
     },
 
     async draftSopEdit(theme, sop) {

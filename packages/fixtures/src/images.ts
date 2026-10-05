@@ -252,3 +252,5 @@ export const fixtureImages: FixtureImage[] = [
 export function fixtureImageUri(id: string): string {
   return `fixture://${id}`;
 }
+
+export { robotSnapshots } from './robots';

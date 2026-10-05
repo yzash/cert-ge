@@ -294,6 +294,43 @@ export const qaPairs: QaPair[] = [
     a: 'சேனல் 3 லோடிங் பே மற்றும் ஒப்பந்ததாரர்களுக்கு. சேனல் 1 FCC மற்றும் அவசரநிலைகள் [1].',
     cites: [{ docId: 'RULE-CNP', sectionId: 'radio' }],
   },
+  // ----- HR & pay (grounded in HR policy docs) -----
+  {
+    id: 'qa-41', lang: 'en', topic: 'leave', q: 'How many days of annual leave do I get?',
+    keys: ['annual', 'leave', 'days', 'entitled', 'entitlement', 'how many'],
+    a: 'Frontline staff get 14 days in the first year plus 1 day per completed year of service, up to 21 days [1]. Apply at least 7 days ahead so the roster can be covered [1]. Up to 5 unused days carry forward and must be used by 31 March [2].',
+    cites: [{ docId: 'HR-LEAVE', sectionId: 'annual' }, { docId: 'HR-LEAVE', sectionId: 'carry' }],
+  },
+  {
+    id: 'qa-42', lang: 'en', topic: 'leave', q: 'I am sick and cannot come for my shift, what do I do?',
+    keys: ['sick', 'mc', 'medical', 'unwell', 'cannot come'],
+    a: 'Inform your supervisor before your shift starts, then upload the MC in the app within 48 hours [1]. Outpatient medical leave is up to 14 days a year [1].',
+    cites: [{ docId: 'HR-LEAVE', sectionId: 'medical' }],
+  },
+  {
+    id: 'qa-43', lang: 'en', topic: 'pay', q: 'How is my overtime calculated?',
+    keys: ['overtime', 'ot', 'calculated', 'rate', 'pay'],
+    a: 'Overtime is 1.5 times your hourly basic rate, where hourly = monthly basic × 12 ÷ (52 × 44) [1]. It is capped at 72 hours a month [1].',
+    cites: [{ docId: 'HR-PAY', sectionId: 'ot' }],
+  },
+  {
+    id: 'qa-44', lang: 'en', topic: 'pay', q: 'When is pay day?',
+    keys: ['pay', 'day', 'salary', 'when', 'credited', 'payday'],
+    a: 'Salary is credited on the 7th of the following month, and your payslip appears in the app the same day [1].',
+    cites: [{ docId: 'HR-PAY', sectionId: 'payday' }],
+  },
+  {
+    id: 'qa-45', lang: 'en', topic: 'claims', q: 'Can I claim a meal if my shift is extended?',
+    keys: ['meal', 'claim', 'extended', 'allowance', 'food'],
+    a: 'Yes: an $8 meal allowance when your shift is extended by more than 2 hours [1]. Submit it within 30 days; your supervisor approves and it is paid with your next salary [2].',
+    cites: [{ docId: 'HR-CLAIMS', sectionId: 'meal' }, { docId: 'HR-CLAIMS', sectionId: 'deadline' }],
+  },
+  {
+    id: 'qa-46', lang: 'en', topic: 'licence', q: 'When should I renew my security officer licence?',
+    keys: ['licence', 'license', 'renew', 'renewal', 'expire', 'expiry'],
+    a: 'Start at least 60 days before it expires: request renewal in the app and HR books your refresher training [1]. With an expired licence you cannot be rostered on security duties [2].',
+    cites: [{ docId: 'HR-LICENCE', sectionId: 'renew' }, { docId: 'HR-LICENCE', sectionId: 'expired' }],
+  },
 ];
 
 /** Suggested prompts shown on the Ask screen. */

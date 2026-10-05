@@ -2,6 +2,8 @@
 
 AI-first mobile app for Certis security and facilities officers, built from [`docs/PRD.md`](docs/PRD.md). Demo-grade, synthetic data, runs end to end with no backend (DEMO mode) and has a LIVE path to Gemini Enterprise and GEAP behind a flag.
 
+**Two versions, one deployment:** `/v2` is the chat-first redesign (Gemini-style centred chat, HR & pay, robot control tower; see [`docs/run-of-show-v2.md`](docs/run-of-show-v2.md)). `/` is the original officer app (v1).
+
 **Try it:** `pnpm install && pnpm dev`, then open http://localhost:8081 in a desktop browser. The phone frame and a presenter rail appear side by side. Follow [`docs/run-of-show.md`](docs/run-of-show.md).
 
 ## What's in the build
@@ -20,6 +22,18 @@ AI-first mobile app for Certis security and facilities officers, built from [`do
 | F10 | HQ feedback loop (web): themes by site/category, weekly trend, Decide (Change SOP / Fix equipment / No change), published updates with ack rates, audit log | `app/hq/index.tsx` |
 
 Plus: sign-in stub with language picker (screen 1), Tasks with Mobility V2 status pills and a Verify shortcut (3), work-order detail with Speak note / Verify / Attach and evidence-gated close (4), Me with offline queue, GE seat, DEMO/LIVE switch and audit trail (12), dark mode by default.
+
+## v2 (chat-first) at /v2
+
+| Area | What it does | Where |
+|---|---|---|
+| Chat | First screen for every role. Centred column like the Gemini app; agents (Mozart, Site knowledge, Report & verify, HR & pay, Robots); suggestion chips; shift-at-a-glance tiles | `apps/mobile/app/v2/chat.tsx` |
+| Intent router | Sentence → cited answer or action card (DEMO rules, LIVE GEAP agent via `POST /chat/route`) | `packages/ai/src/router.ts` |
+| Action cards | Report, verify, handover, friction, leave/MC, balances, payslip (masked), claims with receipt, shift swap, roster, licences, robots, approvals inbox, team, alerts, HQ themes | `apps/mobile/src/v2/cards/` |
+| Control tower | Live level-banded site map with patrol and cleaning robots and officers, fleet commands, robot events → officer task → robot resumes | `apps/mobile/app/v2/control.tsx` |
+| Pages | My tasks, Guard tour, HR & pay, Team, Insights (HQ decide) | `apps/mobile/app/v2/` |
+
+Scope changes from the PRD (HR and robots) are recorded in ADR-0004; the v2 approach in ADR-0005.
 
 ## Architecture
 
@@ -43,7 +57,8 @@ pnpm typecheck
 pnpm test          # domain tests: ranking, invariants, idempotency, evidence-gated close, the full friction → SOP → briefing loop
 pnpm evals         # DEMO: Q&A 48/50 cited correctly (96%), voice 12/12, verification 10/10
 pnpm build:web && npx serve -s apps/mobile/dist -l 8081 &
-pnpm demo:check -- http://localhost:8081 3   # Playwright run-of-show, three clean runs
+pnpm demo:check -- http://localhost:8081 3     # v1 run-of-show, three clean runs
+pnpm demo:check:v2 -- http://localhost:8081 3  # v2 run-of-show
 ```
 
 ## LIVE mode

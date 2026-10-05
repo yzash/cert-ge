@@ -8,7 +8,7 @@ import { createDemoProvider, createLiveProvider, heuristicExtract, type AiProvid
 import { seed } from '@mozart/fixtures';
 import fs from 'node:fs';
 import path from 'node:path';
-import { imageSet, qaSet, voiceSet } from './sets';
+import { imageSet, qaSet, routeSet, voiceSet } from './sets';
 
 const args = process.argv.slice(2);
 const liveIdx = args.indexOf('--live');
@@ -63,6 +63,19 @@ export async function evalVerify() {
   return { name: 'Visual verification verdicts', n: rows.length, pass: rows.filter((r) => r.ok).length, target: 0.9, rows };
 }
 
+export async function evalRouter() {
+  const zones = s.sites[0].zones;
+  const robots = s.robots.map((r) => ({ id: r.id, kind: r.kind }));
+  const rows = [];
+  for (const c of routeSet) {
+    const r = await ai.routeIntent(c.text, { role: c.role, now: Date.now(), zones, robots, officerId: 'o-faizal' });
+    const got = r.intent as Record<string, unknown>;
+    const slotsOk = Object.entries(c.slots ?? {}).every(([k, v]) => got[k] === v);
+    rows.push({ id: c.text, ok: got.kind === c.kind && slotsOk, got: JSON.stringify(got), expected: c.kind });
+  }
+  return { name: 'Chat router (card + slots)', n: rows.length, pass: rows.filter((r) => r.ok).length, target: 0.9, rows };
+}
+
 /** Informational: the unscripted DEMO heuristic on the same clips (what a non-scripted sentence gets offline). */
 export function evalHeuristic() {
   const fields = ['type', 'zoneId', 'assetId', 'severity', 'recommendedSopId'] as const;
@@ -76,7 +89,7 @@ export function evalHeuristic() {
 }
 
 async function main() {
-  const results = [await evalQa(), await evalVoice(), await evalVerify()];
+  const results = [await evalQa(), await evalVoice(), await evalVerify(), await evalRouter()];
   if (!liveUrl) { const h = evalHeuristic(); console.log(`info  Offline heuristic extractor (unscripted, EN clips): ${h.correct}/${h.total} fields correct`); }
   console.log(`\nMozart Frontline evals (${liveUrl ? `LIVE via ${liveUrl}` : 'DEMO'})\n`);
   for (const r of results) {

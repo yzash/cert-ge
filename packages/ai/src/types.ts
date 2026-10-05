@@ -77,6 +77,8 @@ export interface Meta {
   fallbackReason?: string;
 }
 
+import type { Intent, RouteContext } from './router';
+
 export interface AiProvider {
   readonly mode: Mode;
   ask(req: AskRequest): AsyncGenerator<AskChunk>;
@@ -87,6 +89,8 @@ export interface AiProvider {
   generateHandover(req: HandoverRequest): Promise<HandoverDraft & { meta: Meta }>;
   clusterFriction(log: Pick<FrictionLog, 'text' | 'category' | 'sopStepRef' | 'assetId'>, themes: Theme[]): Promise<ClusterResult & { meta: Meta }>;
   draftSopEdit(theme: Theme, sop: Sop, logs: FrictionLog[]): Promise<SopEditDraft & { meta: Meta }>;
+  /** Chat router: which card to show for a sentence. */
+  routeIntent(text: string, ctx: RouteContext & { officerId: string }): Promise<{ intent: Intent; model: string; meta: Meta }>;
 }
 
 export interface AuditSink {

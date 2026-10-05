@@ -16,7 +16,7 @@ export const Role = z.enum(['officer', 'supervisor', 'hq']);
 export type Role = z.infer<typeof Role>;
 
 export const SourceRef = z.object({
-  kind: z.enum(['workOrder', 'incident', 'voiceReport', 'verification', 'alarm', 'friction', 'handover', 'checkpoint', 'briefing', 'doc']),
+  kind: z.enum(['workOrder', 'incident', 'voiceReport', 'verification', 'alarm', 'friction', 'handover', 'checkpoint', 'briefing', 'doc', 'robotEvent', 'leave']),
   id: z.string(),
   label: z.string().optional(),
 });
@@ -108,7 +108,7 @@ export type DocSection = z.infer<typeof DocSection>;
 
 export const Doc = z.object({
   id: z.string(),
-  kind: z.enum(['sop', 'manual', 'siteRule', 'notice', 'incidentSummary']),
+  kind: z.enum(['sop', 'manual', 'siteRule', 'notice', 'incidentSummary', 'policy']),
   title: z.string(),
   siteIds: z.array(z.string()),
   version: z.string().optional(),
@@ -179,7 +179,7 @@ export const WorkOrder = z.object({
   signature: z.string().optional(),
   slaDue: Iso,
   createdAt: Iso,
-  source: z.enum(['mozart', 'voice', 'manual', 'hq']).default('mozart'),
+  source: z.enum(['mozart', 'voice', 'manual', 'hq', 'robot']).default('mozart'),
   sourceRecordId: z.string().optional(),
   closeRequestedAt: Iso.optional(),
   closedAt: Iso.optional(),
@@ -459,7 +459,7 @@ export const Notification = z.object({
   link: z.string().optional(),
   at: Iso,
   read: z.boolean(),
-  kind: z.enum(['friction', 'briefing', 'closure', 'handover', 'escalation', 'tour', 'alert', 'info']),
+  kind: z.enum(['friction', 'briefing', 'closure', 'handover', 'escalation', 'tour', 'alert', 'info', 'hr', 'robot']),
 });
 export type Notification = z.infer<typeof Notification>;
 
@@ -507,6 +507,142 @@ export const AskChunk = z.discriminatedUnion('type', [
 ]);
 export type AskChunk = z.infer<typeof AskChunk>;
 
+// ---------- corporate services (in-house HR system, assumed REST integration) ----------
+
+export const LeaveType = z.enum(['annual', 'medical', 'childcare', 'compassionate', 'unpaid']);
+export type LeaveType = z.infer<typeof LeaveType>;
+
+export const LeaveBalance = z.object({ officerId: z.string(), type: LeaveType, entitled: z.number(), taken: z.number() });
+export type LeaveBalance = z.infer<typeof LeaveBalance>;
+
+export const LeaveRequest = z.object({
+  id: z.string(),
+  officerId: z.string(),
+  type: LeaveType,
+  from: z.string(), // YYYY-MM-DD
+  to: z.string(),
+  days: z.number(),
+  reason: z.string().default(''),
+  status: z.enum(['pending', 'approved', 'rejected', 'cancelled']),
+  approverId: z.string().optional(),
+  decidedAt: Iso.optional(),
+  note: z.string().optional(),
+  createdAt: Iso,
+  ...Confirmation,
+});
+export type LeaveRequest = z.infer<typeof LeaveRequest>;
+
+export const PayLine = z.object({ label: z.string(), amount: z.number() });
+export const Payslip = z.object({
+  id: z.string(),
+  officerId: z.string(),
+  period: z.string(), // YYYY-MM
+  basic: z.number(),
+  overtimeHours: z.number(),
+  overtimePay: z.number(),
+  allowances: z.array(PayLine),
+  deductions: z.array(PayLine),
+  gross: z.number(),
+  net: z.number(),
+  paidOn: z.string(),
+});
+export type Payslip = z.infer<typeof Payslip>;
+
+export const Claim = z.object({
+  id: z.string(),
+  officerId: z.string(),
+  type: z.enum(['transport', 'meal', 'medical', 'uniform', 'training']),
+  amount: z.number(),
+  date: z.string(),
+  note: z.string().default(''),
+  receiptUri: z.string().optional(),
+  status: z.enum(['submitted', 'approved', 'rejected', 'paid']),
+  approverId: z.string().optional(),
+  decidedAt: Iso.optional(),
+  createdAt: Iso,
+  ...Confirmation,
+});
+export type Claim = z.infer<typeof Claim>;
+
+export const RosterShift = z.object({ officerId: z.string(), date: z.string(), shiftId: z.enum(['day', 'night', 'off']), siteId: z.string() });
+export type RosterShift = z.infer<typeof RosterShift>;
+
+export const ShiftSwap = z.object({
+  id: z.string(),
+  officerId: z.string(),
+  withOfficerId: z.string(),
+  date: z.string(),
+  status: z.enum(['pending', 'approved', 'rejected']),
+  note: z.string().default(''),
+  approverId: z.string().optional(),
+  decidedAt: Iso.optional(),
+  createdAt: Iso,
+  ...Confirmation,
+});
+export type ShiftSwap = z.infer<typeof ShiftSwap>;
+
+export const Licence = z.object({
+  id: z.string(),
+  officerId: z.string(),
+  name: z.string(),
+  number: z.string(),
+  issuer: z.string(),
+  expiresOn: z.string(),
+  renewalRequestedAt: Iso.optional(),
+});
+export type Licence = z.infer<typeof Licence>;
+
+// ---------- robots (patrol + cleaning) ----------
+
+export const RobotKind = z.enum(['patrol', 'cleaning']);
+export type RobotKind = z.infer<typeof RobotKind>;
+
+export const Robot = z.object({
+  id: z.string(),
+  siteId: z.string(),
+  kind: RobotKind,
+  name: z.string(),
+  model: z.string(),
+  dockZoneId: z.string(),
+  batteryAtSeed: z.number(),
+  capabilities: z.array(z.string()),
+});
+export type Robot = z.infer<typeof Robot>;
+
+export const RobotMission = z.object({
+  id: z.string(),
+  robotId: z.string(),
+  kind: z.enum(['patrol', 'clean', 'goto', 'return']),
+  waypoints: z.array(z.string()), // zone ids
+  loop: z.boolean(),
+  startedAt: Iso,
+  status: z.enum(['active', 'paused', 'done', 'aborted']),
+  pausedAt: Iso.optional(),
+  pausedReason: z.string().optional(),
+  pausedMs: z.number().default(0),
+  from: z.object({ x: z.number(), y: z.number() }).optional(),
+  createdBy: z.string(),
+  ...Confirmation,
+});
+export type RobotMission = z.infer<typeof RobotMission>;
+
+export const RobotEvent = z.object({
+  id: z.string(),
+  robotId: z.string(),
+  kind: z.enum(['detection', 'obstacle', 'fault', 'low_battery']),
+  label: z.string(),
+  detail: z.string(),
+  zoneId: z.string(),
+  severity: Severity,
+  at: Iso,
+  imageUri: z.string().optional(),
+  suggestedSopId: z.string().optional(),
+  status: z.enum(['open', 'tasked', 'resolved', 'dismissed']),
+  workOrderId: z.string().optional(),
+  assigneeId: z.string().optional(),
+});
+export type RobotEvent = z.infer<typeof RobotEvent>;
+
 // ---------- whole demo state (what Mozart + Firestore hold) ----------
 
 export const DemoState = z.object({
@@ -532,5 +668,17 @@ export const DemoState = z.object({
   notifications: z.array(Notification),
   audit: z.array(AuditEntry),
   processedKeys: z.array(z.string()),
+  // corporate services
+  leaveBalances: z.array(LeaveBalance),
+  leaveRequests: z.array(LeaveRequest),
+  payslips: z.array(Payslip),
+  claims: z.array(Claim),
+  roster: z.array(RosterShift),
+  shiftSwaps: z.array(ShiftSwap),
+  licences: z.array(Licence),
+  // robots
+  robots: z.array(Robot),
+  robotMissions: z.array(RobotMission),
+  robotEvents: z.array(RobotEvent),
 });
 export type DemoState = z.infer<typeof DemoState>;

@@ -5,8 +5,10 @@ import { buildFriction } from './friction';
 import { fixtureImageUri } from './images';
 import { officers, sites } from './site';
 import { buildSops } from './sops';
+import { buildHr, hrDocs } from './hr';
+import { buildRobotState, robots } from './robots';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const MIN = 60_000;
 
@@ -19,7 +21,7 @@ export function seed(now: number = Date.now()): DemoState {
   const t = (mins: number) => new Date(now + mins * MIN).toISOString();
   const today = new Date(now).toISOString().slice(0, 10);
   const sops = buildSops(t(-60 * 24 * 90));
-  const docs = [...sops.map(sopToDoc), ...staticDocs];
+  const docs = [...sops.map(sopToDoc), ...staticDocs, ...hrDocs];
   const { logs, themes } = buildFriction(now);
 
   const workOrders: WorkOrder[] = [
@@ -211,5 +213,8 @@ export function seed(now: number = Date.now()): DemoState {
     notifications,
     audit: [],
     processedKeys: [],
+    ...buildHr(now),
+    robots,
+    ...buildRobotState(now),
   };
 }

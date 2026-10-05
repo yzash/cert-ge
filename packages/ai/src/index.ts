@@ -11,6 +11,7 @@ import type { AiOptions, AiProvider, Meta } from './types';
 
 export * from './types';
 export * from './text';
+export * from './router';
 export { createDemoProvider, heuristicExtract, clusterHeuristic, summariseShift, matchQa, retrieve, NO_ANSWER, draftEditHeuristic } from './demo';
 export { createLiveProvider, LiveError } from './live';
 
@@ -25,7 +26,7 @@ type AnyFn = (...a: any[]) => any;
 
 function withFallback(live: AiProvider, demo: AiProvider, opts: AiOptions): AiProvider {
   const fb = (reason: string): Meta => ({ mode: 'DEMO', fallback: true, fallbackReason: reason });
-  const wrap = <K extends 'extractReport' | 'verify' | 'generateHandover' | 'clusterFriction' | 'draftSopEdit'>(k: K) =>
+  const wrap = <K extends 'extractReport' | 'verify' | 'generateHandover' | 'clusterFriction' | 'draftSopEdit' | 'routeIntent'>(k: K) =>
     (async (...args: any[]) => {
       try {
         return await (live[k] as AnyFn)(...args);
@@ -54,13 +55,14 @@ function withFallback(live: AiProvider, demo: AiProvider, opts: AiOptions): AiPr
     generateHandover: wrap('generateHandover'),
     clusterFriction: wrap('clusterFriction'),
     draftSopEdit: wrap('draftSopEdit'),
+    routeIntent: wrap('routeIntent'),
   };
 }
 
 function audited(p: AiProvider, opts: AiOptions, mode: 'DEMO' | 'LIVE'): AiProvider {
   if (!opts.onAudit) return p;
   const sink = opts.onAudit;
-  const time = <K extends 'extractReport' | 'verify' | 'generateHandover' | 'clusterFriction' | 'draftSopEdit'>(k: K, prompt: (...a: any[]) => string) =>
+  const time = <K extends 'extractReport' | 'verify' | 'generateHandover' | 'clusterFriction' | 'draftSopEdit' | 'routeIntent'>(k: K, prompt: (...a: any[]) => string) =>
     (async (...args: any[]) => {
       const t0 = Date.now();
       const r = await (p[k] as AnyFn)(...args);
@@ -95,5 +97,6 @@ function audited(p: AiProvider, opts: AiOptions, mode: 'DEMO' | 'LIVE'): AiProvi
     generateHandover: time('generateHandover', (r) => `${r.officerId}|${r.shiftStart}`),
     clusterFriction: time('clusterFriction', (l) => l.text),
     draftSopEdit: time('draftSopEdit', (t) => t.id),
+    routeIntent: time('routeIntent', (t) => t),
   };
 }

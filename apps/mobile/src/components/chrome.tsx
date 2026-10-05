@@ -186,6 +186,7 @@ export function PresenterRail() {
             </View>
           </Pressable>
         ))}
+        <Button size="sm" icon="sparkles-outline" label="Try v2: chat-first (new tab)" onPress={() => window.open('/v2', 'mozart-v2')} />
         <Button size="sm" kind="secondary" icon="open-outline" label="Open Raj's HQ view (new tab)" onPress={() => window.open('/hq', 'mozart-hq')} />
         <Button size="sm" kind="secondary" icon="copy-outline" label="Open Mei Ling (new tab)" onPress={() => window.open('/?as=o-meiling', 'mozart-meiling')} />
       </View>

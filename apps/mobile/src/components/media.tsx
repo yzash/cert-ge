@@ -1,4 +1,4 @@
-import { fixtureImages } from '@mozart/fixtures';
+import { fixtureImages, robotSnapshots } from '@mozart/fixtures';
 import React, { useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path, SvgXml } from 'react-native-svg';
@@ -8,7 +8,8 @@ import { Button, Icon, Row, Txt } from './ui';
 /** Renders fixture://img-* scenes (SVG) or real photos (data:/file: URIs). */
 export function SceneImage({ uri, style, height = 220 }: { uri: string; style?: StyleProp<ViewStyle>; height?: number }) {
   const c = useTheme();
-  const fx = uri.startsWith('fixture://') ? fixtureImages.find((f) => f.id === uri.slice(10)) : undefined;
+  const fxId = uri.startsWith('fixture://') ? uri.slice(10) : '';
+  const fx = fixtureImages.find((f) => f.id === fxId) ?? (robotSnapshots[fxId] ? { id: fxId, label: fxId, svg: robotSnapshots[fxId] } : undefined);
   const box: StyleProp<ViewStyle> = [{ height, width: '100%', borderRadius: 12, overflow: 'hidden', backgroundColor: '#111' }, style];
   if (uri.startsWith('fixture://') && !fx) {
     return (

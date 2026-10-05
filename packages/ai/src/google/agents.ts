@@ -11,6 +11,7 @@ import type { HandoverRequest, SiteContext } from '../types';
 import type { GoogleConfig } from './config';
 import { generateJson } from './gemini';
 import { screenPrompt } from './modelArmor';
+import { Intent } from '../router';
 import { CLUSTER_SYSTEM, EXTRACT_SYSTEM, HANDOVER_SYSTEM, SOP_EDIT_SYSTEM, VERIFY_SYSTEM, schemas } from './prompts';
 
 async function guard(cfg: GoogleConfig, token: string, text: string) {
@@ -105,4 +106,29 @@ export async function sopEditAgent(cfg: GoogleConfig, token: string, theme: Them
   const prompt = `SOP ${sop.code} ${sop.title}\n${sop.steps.map((s) => `${s.n}. ${s.text}`).join('\n')}\n\nStep to edit: ${n}\n\nFriction logs (${logs.length}):\n${logs.map((l) => `- [${l.siteId}] ${l.text}`).join('\n')}`;
   const out = await generateJson(cfg, token, { model: cfg.model, system: SOP_EDIT_SYSTEM, prompt, responseSchema: schemas.sopEdit }, z.object({ proposedText: z.string().min(10), rationale: z.string() }));
   return { sopId: sop.id, n, currentText: current, proposedText: out.data.proposedText, rationale: out.data.rationale, model: cfg.model };
+}
+
+const ROUTER_SYSTEM = `You route a Certis officer's chat message to one card. Kinds:
+ask (questions about SOPs, rules, HR policy), brief, tasks, report (something happened/broken), verify (check equipment by camera), handover, friction (something doesn't work),
+leave_apply (type, from, to as YYYY-MM-DD), leave_balance, payslip, claim (type, amount), swap (date), roster, licence,
+robots_status, robot_command (action patrol|clean|goto|pause|resume|return_dock, robotId like PR-01/CR-03, robotKind, zoneId),
+approvals, team, alert, themes (supervisor/HQ only). Use null for unknown slots. Policy questions are "ask", not actions.`;
+
+/** LIVE router agent (Flash-Lite). Output is validated against the same Intent schema the DEMO router uses. */
+export async function routerAgent(cfg: GoogleConfig, token: string, text: string, ctx: { role: string; now: number; zones: { id: string; name: string }[] }) {
+  await guard(cfg, token, text);
+  const prompt = `Role: ${ctx.role}\nToday: ${new Date(ctx.now).toISOString().slice(0, 10)}\nZones: ${ctx.zones.map((z) => `${z.id}=${z.name}`).join('; ')}\nMessage: """${text}"""`;
+  const flat = {
+    type: 'OBJECT',
+    properties: {
+      kind: { type: 'STRING' }, type: { type: 'STRING', nullable: true }, from: { type: 'STRING', nullable: true }, to: { type: 'STRING', nullable: true },
+      amount: { type: 'NUMBER', nullable: true }, date: { type: 'STRING', nullable: true }, action: { type: 'STRING', nullable: true },
+      robotId: { type: 'STRING', nullable: true }, robotKind: { type: 'STRING', nullable: true }, zoneId: { type: 'STRING', nullable: true },
+    },
+    required: ['kind'],
+  };
+  const out = await generateJson(cfg, token, { model: cfg.liteModel, system: ROUTER_SYSTEM, prompt, responseSchema: flat }, z.record(z.string(), z.unknown()));
+  const d = out.data as Record<string, unknown>;
+  const intent = Intent.parse(Object.fromEntries(Object.entries(d).filter(([, v]) => v !== undefined)));
+  return { intent, model: cfg.liteModel };
 }

@@ -22,7 +22,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.body.style.backgroundColor = c.mode === 'dark' ? '#030912' : '#DDE3EC';
-      document.title = path.startsWith('/hq') ? 'Mozart Frontline · HQ' : 'Mozart Frontline';
+      if (!path.startsWith('/v2')) document.title = path.startsWith('/hq') ? 'Mozart Frontline · HQ' : 'Mozart Frontline';
     }
   }, [c.mode, path]);
 
@@ -41,6 +41,19 @@ export default function RootLayout() {
       <Stack.Screen name="verify" options={{ presentation: 'fullScreenModal' }} />
     </Stack>
   );
+
+  // v2 (chat-first) brings its own responsive shell: no phone frame, no presenter rail.
+  if (path.startsWith('/v2')) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="auto" />
+        <View style={{ flex: 1 }}>
+          {stack}
+          <AlertTakeover />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   const framed = Platform.OS === 'web' && width >= 960 && !path.startsWith('/hq');
   if (!framed) {

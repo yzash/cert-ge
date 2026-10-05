@@ -6,6 +6,7 @@ import type { AskChunk, Citation, Doc, ExtractResult, HandoverDraft, HandoverSec
 import { fixtureImages, qaPairs, voiceClips, type QaPair } from '@mozart/fixtures';
 import type { AiProvider, AskRequest, ClusterResult, ExtractRequest, HandoverRequest, Meta, SopEditDraft, VerifyRequest } from './types';
 import { detectLang, keyScore, normalize, sleep, tokens } from './text';
+import { routeIntentDemo } from './router';
 
 const META: Meta = { mode: 'DEMO' };
 
@@ -211,6 +212,10 @@ export function createDemoProvider(opts: { pace?: number } = {}): AiProvider {
     async draftSopEdit(theme, sop, logs) {
       await wait(1200);
       return { ...draftEditHeuristic(theme, sop, logs), meta: META };
+    },
+
+    async routeIntent(text, ctx) {
+      return { intent: routeIntentDemo(text, ctx), model: 'demo-rules-router', meta: META };
     },
   };
 }
