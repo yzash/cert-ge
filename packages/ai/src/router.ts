@@ -14,6 +14,7 @@ export const Intent = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('brief') }),
   z.object({ kind: z.literal('tasks') }),
   z.object({ kind: z.literal('report'), clipId: z.string().optional() }),
+  z.object({ kind: z.literal('photo_report') }),
   z.object({ kind: z.literal('verify'), assetId: z.string().optional() }),
   z.object({ kind: z.literal('handover') }),
   z.object({ kind: z.literal('friction') }),
@@ -103,10 +104,72 @@ function zoneIn(t: string, zones: RouteContext['zones']) {
   return best?.id ?? null;
 }
 
+const rid0 = (t: string) => { const m = /\b(pr|cr)\s*-?\s*0?(\d)\b/.exec(t); return m ? `${m[1].toUpperCase()}-0${m[2]}` : null; };
+
+const ZH_NUM: Record<string, number> = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7 };
+const ZH_DOW: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 日: 0, 天: 0 };
+
+/** Chinese dates: 今天, 明天, 后天, (下)周五 / 星期五 / 礼拜五, 两天 / 3天. */
+export function parseDatesZh(text: string, now: number): { from: string | null; to: string | null } {
+  const base = new Date(now);
+  base.setUTCHours(0, 0, 0, 0);
+  const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
+  let from: Date | null = null;
+  if (/今天|今晚/.test(text)) from = base;
+  else if (/后天/.test(text)) from = addDays(base, 2);
+  else if (/明天|明晚/.test(text)) from = addDays(base, 1);
+  else {
+    const m = /(下)?(?:周|星期|礼拜)([一二三四五六日天])/.exec(text);
+    if (m) {
+      const dow = ZH_DOW[m[2]];
+      // 下周五 = Friday of next calendar week; 周五 = the coming Friday
+      from = m[1]
+        ? addDays(base, -((base.getUTCDay() + 6) % 7) + 7 + ((dow + 6) % 7))
+        : addDays(base, (dow - base.getUTCDay() + 7) % 7 || 7);
+    }
+  }
+  let to = from;
+  const n = /([一两二三四五六七]|\d{1,2})\s*天/.exec(text);
+  if (from && n) {
+    const k = ZH_NUM[n[1]] ?? Number(n[1]);
+    if (k > 1 && k < 30) to = addDays(from, k - 1);
+  }
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+  return { from: from ? ymd(from) : null, to: to ? ymd(to) : null };
+}
+
 /** Deterministic DEMO router. */
 export function routeIntentDemo(text: string, ctx: RouteContext): Intent {
   const t = ` ${normalize(text)} `;
   const question = /^\s*(how|what|when|why|which|can|should|is|are|do|does|where)\b/.test(normalize(text)) || text.trim().endsWith('?');
+
+  // photo-first incident report ("take a picture", 拍照)
+  if (hasAny(t, /\b(photo|picture|pic|snap a|snapshot)\b/) && !hasAny(t, /\b(verify|check the|panel|robot)\b/) || /拍照|拍张|照片/.test(text)) return { kind: 'photo_report' };
+
+  // Mandarin (voice mode): same intents on Chinese keywords
+  if (/[\u4e00-\u9fff]/.test(text)) {
+    const zhQ = /怎么办|怎么|如何|吗|几天|多少天年假|为什么|？|\?/.test(text);
+    if (/机器人/.test(text)) {
+      if (/暂停|停下/.test(text)) return { kind: 'robot_command', action: 'pause', robotId: rid0(t), robotKind: null, zoneId: null };
+      if (/回去|充电|返回/.test(text)) return { kind: 'robot_command', action: 'return_dock', robotId: rid0(t), robotKind: null, zoneId: null };
+      if (/清洁|打扫|清理|拖地/.test(text)) return { kind: 'robot_command', action: 'clean', robotId: rid0(t), robotKind: 'cleaning', zoneId: null };
+      if (/巡逻/.test(text) && /派|去|让/.test(text)) return { kind: 'robot_command', action: 'patrol', robotId: rid0(t), robotKind: 'patrol', zoneId: null };
+      return { kind: 'robots_status' };
+    }
+    if (/工资单|薪资单|我的工资|这个月的工资/.test(text) && !zhQ) return { kind: 'payslip' };
+    if (/假/.test(text) && /还剩|剩下|余额|还有多少/.test(text)) return { kind: 'leave_balance' };
+    if (/(请|申请|要|想|需要).{0,4}假/.test(text) || (/病假/.test(text) && !zhQ)) {
+      const type = /病|不舒服|医生/.test(text) ? 'medical' : /育儿|孩子/.test(text) ? 'childcare' : /丧|奔丧/.test(text) ? 'compassionate' : /无薪/.test(text) ? 'unpaid' : 'annual';
+      const { from, to } = parseDatesZh(text, ctx.now);
+      return { kind: 'leave_apply', type, from, to };
+    }
+    if (/排班|班表|下一个班|什么时候上班/.test(text)) return { kind: 'roster' };
+    if (/交接/.test(text) && !zhQ) return { kind: 'handover' };
+    if (/(报告|上报|举报|报案)/.test(text) && !zhQ) return { kind: 'report' };
+    if (/我的任务|任务清单|下一个任务/.test(text)) return { kind: 'tasks' };
+    if (/简报|今晚的班|我的班/.test(text) && !zhQ) return { kind: 'brief' };
+    return { kind: 'ask' };
+  }
 
   // robots
   const robotId = /\b(pr|cr)\s*-?\s*0?(\d)\b/.exec(t);

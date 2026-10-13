@@ -253,6 +253,15 @@ export const ExtractResult = z.object({
 });
 export type ExtractResult = z.infer<typeof ExtractResult>;
 
+/** Photo-first incident report: what the model saw in an officer's photo, as a report draft. */
+export const PhotoCategory = z.enum(['suspicious_item', 'suspicious_person', 'forced_entry', 'vandalism', 'theft', 'aggression']);
+export type PhotoCategory = z.infer<typeof PhotoCategory>;
+export const PhotoAnalysis = ExtractResult.extend({
+  category: PhotoCategory,
+  observations: z.array(z.string()).max(6),
+});
+export type PhotoAnalysis = z.infer<typeof PhotoAnalysis>;
+
 export const VoiceReport = z.object({
   id: z.string(),
   officerId: z.string(),

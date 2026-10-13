@@ -12,7 +12,7 @@ import type { AiOptions, AiProvider, Meta } from './types';
 export * from './types';
 export * from './text';
 export * from './router';
-export { createDemoProvider, heuristicExtract, clusterHeuristic, summariseShift, matchQa, retrieve, NO_ANSWER, draftEditHeuristic } from './demo';
+export { createDemoProvider, photoCategoryFor, heuristicExtract, clusterHeuristic, summariseShift, matchQa, retrieve, NO_ANSWER, draftEditHeuristic } from './demo';
 export { createLiveProvider, LiveError } from './live';
 
 export function createAi(opts: AiOptions): AiProvider {
@@ -26,7 +26,7 @@ type AnyFn = (...a: any[]) => any;
 
 function withFallback(live: AiProvider, demo: AiProvider, opts: AiOptions): AiProvider {
   const fb = (reason: string): Meta => ({ mode: 'DEMO', fallback: true, fallbackReason: reason });
-  const wrap = <K extends 'extractReport' | 'verify' | 'generateHandover' | 'clusterFriction' | 'draftSopEdit' | 'routeIntent'>(k: K) =>
+  const wrap = <K extends 'extractReport' | 'verify' | 'describePhoto' | 'generateHandover' | 'clusterFriction' | 'draftSopEdit' | 'routeIntent'>(k: K) =>
     (async (...args: any[]) => {
       try {
         return await (live[k] as AnyFn)(...args);
@@ -52,6 +52,7 @@ function withFallback(live: AiProvider, demo: AiProvider, opts: AiOptions): AiPr
     transcribe: (t, o) => demo.transcribe(t, o),
     extractReport: wrap('extractReport'),
     verify: wrap('verify'),
+    describePhoto: wrap('describePhoto'),
     generateHandover: wrap('generateHandover'),
     clusterFriction: wrap('clusterFriction'),
     draftSopEdit: wrap('draftSopEdit'),
@@ -62,7 +63,7 @@ function withFallback(live: AiProvider, demo: AiProvider, opts: AiOptions): AiPr
 function audited(p: AiProvider, opts: AiOptions, mode: 'DEMO' | 'LIVE'): AiProvider {
   if (!opts.onAudit) return p;
   const sink = opts.onAudit;
-  const time = <K extends 'extractReport' | 'verify' | 'generateHandover' | 'clusterFriction' | 'draftSopEdit' | 'routeIntent'>(k: K, prompt: (...a: any[]) => string) =>
+  const time = <K extends 'extractReport' | 'verify' | 'describePhoto' | 'generateHandover' | 'clusterFriction' | 'draftSopEdit' | 'routeIntent'>(k: K, prompt: (...a: any[]) => string) =>
     (async (...args: any[]) => {
       const t0 = Date.now();
       const r = await (p[k] as AnyFn)(...args);
@@ -94,6 +95,7 @@ function audited(p: AiProvider, opts: AiOptions, mode: 'DEMO' | 'LIVE'): AiProvi
     transcribe: (t, o) => p.transcribe(t, o),
     extractReport: time('extractReport', (r) => r.transcript),
     verify: time('verify', (r) => `${r.imageUri.slice(0, 64)}|${r.assetId ?? ''}`),
+    describePhoto: time('describePhoto', (r) => `${r.imageUri.slice(0, 64)}|${r.category ?? ''}|${r.note ?? ''}`),
     generateHandover: time('generateHandover', (r) => `${r.officerId}|${r.shiftStart}`),
     clusterFriction: time('clusterFriction', (l) => l.text),
     draftSopEdit: time('draftSopEdit', (t) => t.id),

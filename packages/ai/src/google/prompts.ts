@@ -23,6 +23,11 @@ export const CLUSTER_SYSTEM = `You assign an officer's friction log to the best 
 
 export const SOP_EDIT_SYSTEM = `You draft an edit to one SOP step from clustered officer friction logs. Keep the step's intent, fix the field problem the logs describe, and stay consistent with the other steps provided. A human will review and publish.`;
 
+export const PHOTO_SYSTEM = `You help a Certis security officer report a security incident from a photo they just took on site.
+Describe only what is visible. Pick the closest category, write a short factual title and description (no speculation about identity, ethnicity or intent),
+choose a severity (low, medium, high, critical) and the best matching SOP id from the list, or null. List up to 4 short observations.
+Never invent SOP ids that are not in the list. If the photo shows nothing security-relevant, say so in the description with severity low.`;
+
 export const schemas = {
   extract: {
     type: 'OBJECT',
@@ -47,6 +52,19 @@ export const schemas = {
       },
     },
     required: ['draft', 'confidence'],
+  },
+  photo: {
+    type: 'OBJECT',
+    properties: {
+      category: { type: 'STRING', enum: ['suspicious_item', 'suspicious_person', 'forced_entry', 'vandalism', 'theft', 'aggression'] },
+      observations: { type: 'ARRAY', items: { type: 'STRING' } },
+      title: { type: 'STRING' },
+      severity: { type: 'STRING', enum: ['low', 'medium', 'high', 'critical'] },
+      description: { type: 'STRING' },
+      recommendedSopId: { type: 'STRING', nullable: true },
+      confidence: { type: 'NUMBER' },
+    },
+    required: ['category', 'observations', 'title', 'severity', 'description', 'recommendedSopId', 'confidence'],
   },
   verify: {
     type: 'OBJECT',

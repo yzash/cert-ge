@@ -11,6 +11,7 @@ import { useMe, useOnline, usePendingCount, useView } from '@/lib/hooks';
 import { useApp } from '@/store/app';
 import { useChat } from './chatStore';
 import { Avatar, Btn, Divider, Icon, IconBtn, Row, T, useV2, type IconName } from './ui';
+import { CertisLogo } from '@/components/brand';
 
 export const useShell = create<{ drawer: boolean; menu: boolean; setDrawer(v: boolean): void; setMenu(v: boolean): void }>((set) => ({
   drawer: false, menu: false, setDrawer: (drawer) => set({ drawer }), setMenu: (menu) => set({ menu }),
@@ -91,16 +92,10 @@ export function Sidebar() {
   return (
     <View style={{ width: 280, height: '100%', backgroundColor: c.mode === 'dark' ? c.surface : '#EEF2F7', paddingTop: insets.top + 14, paddingHorizontal: 12, paddingBottom: 12, gap: 14 }}>
       <Row style={{ paddingHorizontal: 8, justifyContent: 'space-between' }}>
-        <Row gap={10}>
-          <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: c.onNavy, fontFamily: v2.font.bold, fontSize: 15 }}>M</Text>
-            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: c.orange, borderWidth: 2, borderColor: c.mode === 'dark' ? c.surface : '#EEF2F7' }} />
-          </View>
-          <View>
-            <Text style={{ color: c.text, fontFamily: v2.font.semibold, fontSize: 16 }}>Mozart</Text>
-            <T v="caption">Certis Frontline</T>
-          </View>
-        </Row>
+        <View style={{ gap: 6 }}>
+          <CertisLogo height={26} onDark={c.mode === 'dark'} />
+          <T v="caption">Mozart · Frontline assistant</T>
+        </View>
       </Row>
       <Btn kind="soft" icon="add" label="New chat" style={{ justifyContent: 'flex-start' }} onPress={() => { newThread(me.id); router.push('/v2/chat'); setDrawer(false); }} />
       <Nav />

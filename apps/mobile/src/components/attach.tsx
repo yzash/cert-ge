@@ -4,11 +4,17 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useTheme } from '@/lib/theme';
+import { capturePhoto } from '@/lib/camera';
 import { SceneImage } from './media';
 import { Button, Row, Txt } from './ui';
 
 /** Take a real photo (kept small for offline storage) or pick a demo scene photo. */
 export async function takePhoto(): Promise<Attachment | null> {
+  return capturePhoto({ source: 'camera' });
+}
+
+/** @deprecated kept for reference: library-only picker */
+export async function pickPhotoLegacy(): Promise<Attachment | null> {
   try {
     const perm = Platform.OS === 'web' ? { granted: true } : await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) return null;

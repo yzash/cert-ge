@@ -30,6 +30,8 @@ Plus: sign-in stub with language picker (screen 1), Tasks with Mobility V2 statu
 | Chat | First screen for every role. Centred column like the Gemini app; agents (Mozart, Site knowledge, Report & verify, HR & pay, Robots); suggestion chips; shift-at-a-glance tiles | `apps/mobile/app/v2/chat.tsx` |
 | Intent router | Sentence → cited answer or action card (DEMO rules, LIVE GEAP agent via `POST /chat/route`) | `packages/ai/src/router.ts` |
 | Action cards | Report, verify, handover, friction, leave/MC, balances, payslip (masked), claims with receipt, shift swap, roster, licences, robots, approvals inbox, team, alerts, HQ themes | `apps/mobile/src/v2/cards/` |
+| Photo incident | Composer camera → phone camera → incident draft (category, location from GPS zone, severity, SOP) → **Submit incident**. DEMO drafts are pregenerated per category; LIVE uses the Gemini photo agent (`POST /api/v1/reports/photo`) | `apps/mobile/src/v2/cards/photo.tsx`, `apps/mobile/src/lib/camera.ts` |
+| Voice mode | Full-screen English / 中文 voice mode with live transcript and read-aloud. Real recognition uses the browser's Web Speech API (Chrome desktop and Android, Safari on iOS 14.5+); elsewhere it runs pre-engineered demo prompts. The native Expo app would need a dev build with a speech-recognition module | `apps/mobile/src/v2/voice.tsx`, `apps/mobile/src/lib/speech.ts` |
 | Control tower | Live level-banded site map with patrol and cleaning robots and officers, fleet commands, robot events → officer task → robot resumes | `apps/mobile/app/v2/control.tsx` |
 | Pages | My tasks, Guard tour, HR & pay, Team, Insights (HQ decide) | `apps/mobile/app/v2/` |
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useApp } from '@/store/app';
 import { Avatar, Btn, Field, GradientText, Icon, Row, T, useV2 } from '@/v2/ui';
+import { CertisLogo } from '@/components/brand';
 
 const emailFor = (name: string) => `${name.toLowerCase().replace(/\s+/g, '.')}@certisgroup.demo`;
 
@@ -23,12 +24,10 @@ export default function V2SignIn() {
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <View style={{ width: '100%', maxWidth: 420, gap: 18 }}>
-        <Row gap={10}>
-          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: c.onNavy, fontFamily: v2.font.bold, fontSize: 20 }}>M</Text>
-          </View>
-          <View><T v="title">Mozart</T><T v="caption">Certis Frontline</T></View>
-        </Row>
+        <View style={{ gap: 8 }}>
+          <CertisLogo height={34} onDark={c.mode === 'dark'} />
+          <T v="caption">Mozart · Frontline assistant</T>
+        </View>
         <GradientText size={34}>Sign in to your shift</GradientText>
         <Field label="Work email" value={email} onChangeText={(t) => { setEmail(t); setErr(''); }} autoCapitalize="none" keyboardType="email-address" />
         <Field label="Password" value="demo-password" secureTextEntry />

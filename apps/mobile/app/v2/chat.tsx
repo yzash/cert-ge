@@ -11,14 +11,20 @@ import { useApp } from '@/store/app';
 import { CardFor } from '@/v2/cards';
 import { AnswerBody } from '@/v2/cards/core';
 import { AGENTS, useChat, type AgentId, type ChatMessage } from '@/v2/chatStore';
-import { precacheAnswers, sendMessage, surfaceNotifications } from '@/v2/engine';
+import { precacheAnswers, sendMessage, sendPhoto, surfaceNotifications } from '@/v2/engine';
+import { capturePhoto } from '@/lib/camera';
+import { SceneImage } from '@/components/media';
+import { VoiceMode, type VoiceLang } from '@/v2/voice';
 import { useShell, useWide } from '@/v2/shell';
 import { Avatar, Badge, FadeIn, GradientText, IconBtn, Row, T, useV2 } from '@/v2/ui';
+import { CertisLogo } from '@/components/brand';
 
 const SUGGEST: Record<string, { label: string; text: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[]> = {
   officer: [
     { label: 'Brief me on my shift', text: 'Brief me on my shift', icon: 'sunny-outline' },
     { label: 'Supervisory fault on L3?', text: 'What is the SOP if the fire panel shows a supervisory fault on L3?', icon: 'library-outline' },
+    { label: 'Report with a photo', text: 'Report with a photo', icon: 'camera-outline' },
+    { label: 'Voice · 中文 / English', text: '__voice__', icon: 'pulse-outline' },
     { label: 'Report a jammed gate', text: 'Report a jammed gate at B2', icon: 'mic-outline' },
     { label: 'Apply for leave', text: 'Apply annual leave next friday for 2 days', icon: 'calendar-outline' },
     { label: 'My payslip', text: 'Show my payslip', icon: 'wallet-outline' },
@@ -60,6 +66,7 @@ export default function Chat() {
   const [busy, setBusy] = useState(false);
   const [agentMenu, setAgentMenu] = useState(false);
   const [listening, setListening] = useState<null | (() => void)>(null);
+  const [voice, setVoice] = useState<null | VoiceLang>(null);
   const scroll = useRef<ScrollView>(null);
 
   useEffect(() => { if (!thread) newThread(me.id); }, [me.id, !!thread]);
@@ -85,6 +92,11 @@ export default function Chat() {
     else void send('Report something by voice');
   };
 
+  const photo = async () => {
+    const a = await capturePhoto({ source: 'camera' });
+    if (a) sendPhoto(thread.id, a);
+  };
+
   const composer = (
     <View style={{ width: '100%', maxWidth: v2.chatWidth, alignSelf: 'center' }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, padding: 8, paddingLeft: 10, borderRadius: v2.radius.xl, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, ...(Platform.OS === 'web' ? { boxShadow: `0 4px 24px ${c.shadow}` } : {}) } as never}>
@@ -92,7 +104,7 @@ export default function Chat() {
         <TextInput
           value={input}
           onChangeText={setInput}
-          placeholder={listening ? 'Listening…' : `Ask ${agent.name} anything, or tell it what to do`}
+          placeholder={listening ? 'Listening…' : wide ? `Ask ${agent.name} anything, or tell it what to do` : `Ask ${agent.name}`}
           placeholderTextColor={c.textFaint}
           multiline
           onKeyPress={(e) => {
@@ -102,11 +114,19 @@ export default function Chat() {
           accessibilityLabel="Message"
           style={{ flex: 1, minHeight: 44, maxHeight: 160, paddingVertical: 11, fontSize: 16, fontFamily: v2.font.regular, color: c.text, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) } as never}
         />
+        <IconBtn icon="camera-outline" label="Take a photo to report" onPress={() => void photo()} />
         <IconBtn icon={listening ? 'stop-circle' : 'mic-outline'} color={listening ? c.fail : c.textMuted} label={listening ? 'Stop dictation' : 'Speak'} onPress={mic} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Send message" onPress={() => void send()} disabled={!input.trim() || busy}
-          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: input.trim() ? c.orange : c.sunken, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="arrow-up" size={22} color={input.trim() ? c.onOrange : c.textFaint} />
-        </Pressable>
+        {input.trim() ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Send message" onPress={() => void send()} disabled={busy}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="arrow-up" size={22} color={c.onOrange} />
+          </Pressable>
+        ) : (
+          <Pressable accessibilityRole="button" accessibilityLabel="Voice mode" onPress={() => setVoice(lang === 'zh' ? 'zh' : 'en')}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="pulse" size={22} color={c.onNavy} />
+          </Pressable>
+        )}
       </View>
       <T v="caption" color={c.textFaint} style={{ textAlign: 'center', marginTop: 8 }}>
         {online ? 'Answers cite site documents. Actions only happen when you confirm.' : 'Offline · answers from cache, actions queue and sync later'}
@@ -149,6 +169,7 @@ export default function Chat() {
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
           <View style={{ width: '100%', maxWidth: v2.chatWidth, alignSelf: 'center', gap: 22 }}>
             <FadeIn style={{ gap: 6 }}>
+              {!wide ? <CertisLogo height={20} onDark={c.mode === 'dark'} style={{ marginBottom: 10 }} /> : null}
               <GradientText size={wide ? 44 : 34}>Hello, {me.name.split(' ')[0]}</GradientText>
               <T v="lead" color={c.textFaint}>{greetingLine(me.role, s, me.id, now)}</T>
             </FadeIn>
@@ -156,7 +177,7 @@ export default function Chat() {
             <FadeIn delay={140}>
               <Row wrap gap={8} style={{ justifyContent: 'center' }}>
                 {(SUGGEST[me.role] ?? SUGGEST.officer).map((x) => (
-                  <Pressable key={x.label} onPress={() => void send(x.text)} accessibilityRole="button"
+                  <Pressable key={x.label} onPress={() => (x.text === '__voice__' ? setVoice('zh') : void send(x.text))} accessibilityRole="button"
                     style={({ hovered }: { hovered?: boolean }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, height: 40, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: hovered ? c.sunken : c.surface })}>
                     <Ionicons name={x.icon} size={16} color={c.textMuted} />
                     <Text style={{ fontFamily: v2.font.medium, fontSize: 14, color: c.text }}>{x.label}</Text>
@@ -177,6 +198,7 @@ export default function Chat() {
           <View style={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 12, paddingTop: 4 }}>{composer}</View>
         </>
       )}
+      {voice ? <VoiceMode threadId={thread.id} me={me} agent={thread.agent} initialLang={voice} onClose={() => setVoice(null)} /> : null}
     </KeyboardAvoidingView>
   );
 }
@@ -229,6 +251,9 @@ function Message({ threadId, m }: { threadId: string; m: ChatMessage }) {
     return (
       <FadeIn style={{ alignSelf: 'flex-end', maxWidth: '82%' }}>
         <View style={{ backgroundColor: c.mode === 'dark' ? c.raised : '#E9EEF5', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, borderBottomRightRadius: 6 }}>
+          {(m.data as { photo?: { uri: string } } | undefined)?.photo ? (
+            <View style={{ width: 200, marginBottom: 6, marginTop: 2 }}><SceneImage uri={(m.data as { photo: { uri: string } }).photo.uri} height={240} /></View>
+          ) : null}
           <T color={c.text}>{m.text}</T>
         </View>
       </FadeIn>

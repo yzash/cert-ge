@@ -331,6 +331,49 @@ export const qaPairs: QaPair[] = [
     a: 'Start at least 60 days before it expires: request renewal in the app and HR books your refresher training [1]. With an expired licence you cannot be rostered on security duties [2].',
     cites: [{ docId: 'HR-LICENCE', sectionId: 'renew' }, { docId: 'HR-LICENCE', sectionId: 'expired' }],
   },
+  // Mandarin voice-mode set (same documents, answers in Chinese)
+  {
+    id: 'qa-47', lang: 'zh', topic: 'gate', q: '卸货区4号闸门卡住了怎么办？',
+    keys: ['闸门', '卡住', '卸货', '卷帘', '大门'],
+    a: '先放置路锥，停止车辆进出 [1]。检查安全触边和光电感应器有没有被挡住 [2]，然后只按一次 RESET，反复操作会烧坏马达 [3]。如果还是不动，按 SOP 用手动钥匙释放 [4]；钥匙在 FCC 钥匙柜 K-07 号挂钩，由 FCC 值班员登记借出 [5]。',
+    cites: [
+      { docId: 'SOP-GATE-004', sectionId: 's1' },
+      { docId: 'SOP-GATE-004', sectionId: 's2' },
+      { docId: 'MAN-RS500', sectionId: 'reset' },
+      { docId: 'SOP-GATE-004', sectionId: 's4' },
+      { docId: 'RULE-CNP', sectionId: 'keys' },
+    ],
+  },
+  {
+    id: 'qa-48', lang: 'zh', topic: 'gate', q: '卸货区闸门的手动钥匙在哪里？',
+    keys: ['钥匙', '手动', '在哪', '闸门'],
+    a: '在一楼 FCC 钥匙柜 K-07 号挂钩，由 FCC 值班员登记借出 [1]。巡逻人员平时不带手动钥匙，除非为某项工作登记借出 [2]。',
+    cites: [{ docId: 'RULE-CNP', sectionId: 'keys' }, { docId: 'SOP-ACC-005', sectionId: 's3' }],
+  },
+  {
+    id: 'qa-49', lang: 'zh', topic: 'bag', q: '中庭有一个无人看管的包怎么办？',
+    keys: ['包', '无人看管', '可疑', '物品', '行李'],
+    a: '不要触碰。用 HOT 原则判断：是否隐藏、是否明显可疑、是否属于常见物品 [1]。询问附近的人，并请 FCC 查看监控 [2]。如果可疑，封锁 50 米范围，15 米内不要使用对讲机，用电话通知 FCC [3]。',
+    cites: [{ docId: 'SOP-SEC-010', sectionId: 's1' }, { docId: 'SOP-SEC-010', sectionId: 's2' }, { docId: 'SOP-SEC-010', sectionId: 's3' }],
+  },
+  {
+    id: 'qa-50', lang: 'zh', topic: 'leave', q: '我每年有几天年假？',
+    keys: ['年假', '几天', '多少天', '每年'],
+    a: '前线员工第一年有 14 天年假，每满一年服务加 1 天，最多 21 天 [1]。请至少提前 7 天申请，方便排班 [1]。未用完的年假最多可结转 5 天，须在 3 月 31 日前用完 [2]。',
+    cites: [{ docId: 'HR-LEAVE', sectionId: 'annual' }, { docId: 'HR-LEAVE', sectionId: 'carry' }],
+  },
+  {
+    id: 'qa-51', lang: 'zh', topic: 'pay', q: '加班费怎么算？',
+    keys: ['加班', '加班费', '怎么算', '计算'],
+    a: '加班费是时薪的 1.5 倍，时薪 = 月基本工资 × 12 ÷ (52 × 44) [1]。每月加班上限 72 小时 [1]。',
+    cites: [{ docId: 'HR-PAY', sectionId: 'ot' }],
+  },
+  {
+    id: 'qa-52', lang: 'zh', topic: 'leave', q: '我生病了不能上班怎么办？',
+    keys: ['生病', '病假', '不能上班', '不舒服', '医生'],
+    a: '在上班前通知你的主管，然后在 48 小时内在 App 上传病假单 [1]。门诊病假每年最多 14 天 [1]。',
+    cites: [{ docId: 'HR-LEAVE', sectionId: 'medical' }],
+  },
 ];
 
 /** Suggested prompts shown on the Ask screen. */

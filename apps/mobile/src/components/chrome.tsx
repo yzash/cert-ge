@@ -8,6 +8,7 @@ import { useMe, useOnline, usePendingCount, useView } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { clock } from '@/lib/format';
 import { Button, Icon, Pill, Row, Txt } from './ui';
+import { CertisLogo } from './brand';
 
 /** "Offline · 3 pending" strip. Visible whenever we are offline or have queued writes. */
 export function ConnectivityBar() {
@@ -168,6 +169,7 @@ export function PresenterRail() {
   return (
     <ScrollView style={{ width: 300, maxHeight: '100%' }} contentContainerStyle={{ gap: space.md, padding: space.lg }}>
       <View>
+        <CertisLogo height={20} onDark={c.mode === 'dark'} style={{ marginBottom: 6 }} />
         <Txt v="label" color={c.primary}>Mozart Frontline</Txt>
         <Txt v="title">Presenter controls</Txt>
         <Txt v="caption">Each browser tab is a separate device. Open HQ in its own tab.</Txt>

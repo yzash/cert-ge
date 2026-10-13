@@ -3,6 +3,7 @@ import type { ChatMessage } from '../chatStore';
 import { AlertCard, AnswerBody, ApprovalsCard, BriefCard, NoticeCard, TasksCard, TeamCard, ThemesCard } from './core';
 import { FrictionCard, HandoverCard, ReportCard, VerifyCard } from './field';
 import { ClaimCard, LeaveApplyCard, LeaveBalanceCard, LicenceCard, PayslipCard, RosterCard, SwapCard } from './hr';
+import { PhotoReportCard } from './photo';
 import { RobotCommandCard, RobotsStatusCard, RobotTaskCard } from './robots';
 
 /** Renders the interactive card for an assistant message. */
@@ -13,6 +14,7 @@ export function CardFor({ threadId, msg }: { threadId: string; msg: ChatMessage 
     case 'brief': return <BriefCard />;
     case 'tasks': return <TasksCard />;
     case 'report': return <ReportCard {...p} />;
+    case 'photo_report': return <PhotoReportCard {...p} />;
     case 'verify': return <VerifyCard {...p} />;
     case 'handover': return <HandoverCard {...p} />;
     case 'friction': return <FrictionCard {...p} />;

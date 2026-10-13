@@ -7,6 +7,8 @@ import { Pressable, Text, View } from 'react-native';
 import { SceneImage } from '@/components/media';
 import { ago, clock, officerName, slaText, zoneName } from '@/lib/format';
 import { useMe, useNow, useView } from '@/lib/hooks';
+import { speak, stopSpeaking, ttsSupported } from '@/lib/speech';
+import { detectLang } from '@mozart/ai';
 import { getAi, useApp } from '@/store/app';
 import type { ChatMessage } from '../chatStore';
 import { usePanel } from '../panels';
@@ -40,10 +42,19 @@ export function AnswerBody({ msg }: { msg: ChatMessage }) {
         <Row wrap>
           {msg.meta?.cached ? <Badge tone="warn" icon="cloud-offline-outline" label="Offline, cached" /> : msg.meta?.fallback ? <Badge tone="warn" icon="warning-outline" label="LIVE failed · DEMO answer" /> : null}
           {msg.grounded === false && !msg.meta?.cached ? <EscalateButton question={msg.data?.q as string | undefined} /> : null}
+          {ttsSupported() && msg.text ? <ReadAloud text={msg.text} /> : null}
           {msg.meta?.firstTokenMs !== undefined ? <T v="caption" color={c.textFaint}>{(msg.meta.firstTokenMs / 1000).toFixed(1)} s to first word</T> : null}
         </Row>
       ) : null}
     </Col>
+  );
+}
+
+function ReadAloud({ text }: { text: string }) {
+  const [on, setOn] = useState(false);
+  return (
+    <Btn size="sm" kind="ghost" icon={on ? 'stop-circle-outline' : 'volume-high-outline'} label={on ? 'Stop' : 'Read aloud'}
+      onPress={() => { if (on) { stopSpeaking(); setOn(false); return; } setOn(true); speak(text, detectLang(text) === 'zh' ? 'zh' : 'en', () => setOn(false)); }} />
   );
 }
 

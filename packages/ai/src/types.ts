@@ -1,5 +1,5 @@
 import type {
-  Asset, AskChunk, Doc, ExtractResult, FrictionLog, GuardTour, HandoverDraft, Incident, Lang, Alarm, Officer, Site, Sop, Theme,
+  Asset, AskChunk, PhotoAnalysis, PhotoCategory, Doc, ExtractResult, FrictionLog, GuardTour, HandoverDraft, Incident, Lang, Alarm, Officer, Site, Sop, Theme,
   Verification, VerifyResult, VoiceReport, WorkOrder,
 } from '@mozart/schema';
 
@@ -37,6 +37,18 @@ export interface VerifyRequest {
   assetId?: string;
   attempt: number;
   officerId: string;
+  ctx: SiteContext;
+}
+
+export interface PhotoRequest {
+  /** data: URI from the phone camera, or fixture:// in tests */
+  imageUri: string;
+  officerId: string;
+  officerZoneId?: string;
+  /** officer's pick when they tapped a category before / after the photo */
+  category?: PhotoCategory;
+  /** anything the officer typed with the photo */
+  note?: string;
   ctx: SiteContext;
 }
 
@@ -86,6 +98,8 @@ export interface AiProvider {
   transcribe(clipText: string, opts?: { durationSec?: number }): AsyncGenerator<string>;
   extractReport(req: ExtractRequest): Promise<ExtractResult & { meta: Meta }>;
   verify(req: VerifyRequest): Promise<VerifyResult & { meta: Meta }>;
+  /** Photo → incident draft (DEMO: pregenerated per category; LIVE: Gemini multimodal). */
+  describePhoto(req: PhotoRequest): Promise<PhotoAnalysis & { meta: Meta }>;
   generateHandover(req: HandoverRequest): Promise<HandoverDraft & { meta: Meta }>;
   clusterFriction(log: Pick<FrictionLog, 'text' | 'category' | 'sopStepRef' | 'assetId'>, themes: Theme[]): Promise<ClusterResult & { meta: Meta }>;
   draftSopEdit(theme: Theme, sop: Sop, logs: FrictionLog[]): Promise<SopEditDraft & { meta: Meta }>;

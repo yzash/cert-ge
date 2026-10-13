@@ -3,9 +3,9 @@
  * (apps/bff), which exchanges the officer token for a WIF token and calls Gemini Enterprise
  * streamAssist / GEAP agents. See docs/adr/0003-live-mode.md.
  */
-import { AskChunk, ExtractResult, HandoverDraft, VerifyResult } from '@mozart/schema';
+import { AskChunk, ExtractResult, HandoverDraft, PhotoAnalysis, VerifyResult } from '@mozart/schema';
 import { z } from 'zod';
-import type { AiProvider, AskRequest, ExtractRequest, HandoverRequest, Meta, SopEditDraft, VerifyRequest } from './types';
+import type { AiProvider, AskRequest, ExtractRequest, HandoverRequest, Meta, PhotoRequest, SopEditDraft, VerifyRequest } from './types';
 import type { ClusterResult } from './types';
 import { Intent } from './router';
 
@@ -95,6 +95,11 @@ export function createLiveProvider(opts: { bffUrl: string; token?: string; timeo
 
     async verify(req: VerifyRequest) {
       const r = await post('/verify', { imageUri: req.imageUri, assetId: req.assetId, attempt: req.attempt, officerId: req.officerId, ctx: slimCtx(req.ctx) }, VerifyResult);
+      return { ...r, meta: META };
+    },
+
+    async describePhoto(req: PhotoRequest) {
+      const r = await post('/reports/photo', { imageUri: req.imageUri, category: req.category, note: req.note, officerId: req.officerId, officerZoneId: req.officerZoneId, ctx: slimCtx(req.ctx) }, PhotoAnalysis);
       return { ...r, meta: META };
     },
 

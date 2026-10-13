@@ -2,13 +2,31 @@
  * DEMO implementations. Scripted fixtures first, then deterministic heuristics over the
  * site corpus, so the demo works offline and still responds sensibly to unscripted input.
  */
-import type { AskChunk, Citation, Doc, ExtractResult, HandoverDraft, HandoverSection, ReportDraft, Severity, SourceRef, VerifyResult } from '@mozart/schema';
-import { fixtureImages, qaPairs, voiceClips, type QaPair } from '@mozart/fixtures';
-import type { AiProvider, AskRequest, ClusterResult, ExtractRequest, HandoverRequest, Meta, SopEditDraft, VerifyRequest } from './types';
+import type { AskChunk, Citation, Doc, ExtractResult, PhotoAnalysis, PhotoCategory, HandoverDraft, HandoverSection, ReportDraft, Severity, SourceRef, VerifyResult } from '@mozart/schema';
+import { fixtureImages, photoIncidentDrafts, securityPhotoCategory, qaPairs, voiceClips, type QaPair } from '@mozart/fixtures';
+import type { AiProvider, AskRequest, ClusterResult, ExtractRequest, HandoverRequest, Meta, PhotoRequest, SopEditDraft, VerifyRequest } from './types';
 import { detectLang, keyScore, normalize, sleep, tokens } from './text';
 import { routeIntentDemo } from './router';
 
 const META: Meta = { mode: 'DEMO' };
+
+const PHOTO_WORDS: [PhotoCategory, RegExp][] = [
+  ['forced_entry', /forc|pried|pry|break[- ]?in|broken (lock|door)|trespass|闯入|撬/],
+  ['aggression', /fight|aggress|assault|threat|weapon|knife|打架|威胁/],
+  ['theft', /theft|steal|stole|shoplift|robb|偷|盗/],
+  ['vandalism', /vandal|graffiti|smash|damage|涂鸦|破坏/],
+  ['suspicious_person', /person|man|woman|loiter|someone|people|人/],
+  ['suspicious_item', /bag|package|parcel|box|item|object|unattended|包|物品/],
+];
+
+/** DEMO: pick the pregenerated draft from the officer's chosen category or note; default suspicious item. */
+export function photoCategoryFor(req: Pick<PhotoRequest, 'category' | 'note'> & { imageUri?: string }): PhotoCategory {
+  if (req.category) return req.category;
+  const fromFixture = req.imageUri ? securityPhotoCategory(req.imageUri) : undefined;
+  if (fromFixture) return fromFixture;
+  const n = (req.note ?? '').toLowerCase();
+  return PHOTO_WORDS.find(([, re]) => re.test(n))?.[0] ?? 'suspicious_item';
+}
 
 export const NO_ANSWER: Record<string, string> = {
   en: 'I don’t have that in the site documents.',
@@ -153,6 +171,21 @@ export function createDemoProvider(opts: { pace?: number } = {}): AiProvider {
       }
       res.latencyMs = Date.now() - t0;
       return { ...res, meta: META };
+    },
+
+    async describePhoto(req: PhotoRequest) {
+      const t0 = Date.now();
+      await wait(1800);
+      const category = photoCategoryFor(req);
+      const p = photoIncidentDrafts[category];
+      const zone = req.ctx.sites.find((x) => x.id === req.ctx.siteId)?.zones.find((z) => z.id === req.officerZoneId);
+      const confidence: Record<string, number> = { zoneId: zone ? 0.7 : 0, location: zone ? 0.6 : 0 };
+      for (const [k, v] of Object.entries(p.confidence)) confidence[k] = v ?? 0;
+      const r: PhotoAnalysis = {
+        category, observations: [...p.observations], confidence, model: 'demo-pregenerated-photo', latencyMs: Date.now() - t0,
+        draft: { ...p.draft, zoneId: zone?.id ?? null, location: zone?.name ?? null, description: req.note ? `${p.draft.description} Officer note: ${req.note}` : p.draft.description },
+      };
+      return { ...r, meta: META };
     },
 
     async verify(req: VerifyRequest) {

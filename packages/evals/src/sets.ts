@@ -17,6 +17,9 @@ export const qaSet: QaCase[] = [
   { id: 'qa-p9', q: 'What is my overtime pay rate?', expectDocs: ['HR-PAY'], grounded: true },
   { id: 'qa-n2', q: 'What will the weather be tomorrow?', expectDocs: [], grounded: false },
   { id: 'qa-n3', q: 'Can I carry a baton on patrol?', expectDocs: [], grounded: false },
+  // Mandarin paraphrases (voice mode)
+  { id: 'qa-zp1', q: '卸货区的卷帘门卡住了', expectDocs: ['SOP-GATE-004', 'MAN-RS500', 'RULE-CNP'], grounded: true },
+  { id: 'qa-zp2', q: '加班费是怎么计算的？', expectDocs: ['HR-PAY'], grounded: true },
 ];
 
 export const voiceSet = voiceClips;
@@ -26,6 +29,17 @@ export interface RouteCase { text: string; role: 'officer' | 'supervisor' | 'hq'
 
 /** Chat router eval: sentence → expected card (and key slots). */
 export const routeSet: RouteCase[] = [
+  // photo-first reports and Mandarin voice prompts
+  { text: 'Report with a photo', role: 'officer', kind: 'photo_report' },
+  { text: 'Take a picture of the bag and report it', role: 'officer', kind: 'photo_report' },
+  { text: '拍照上报', role: 'officer', kind: 'photo_report' },
+  { text: '我明天要请病假', role: 'officer', kind: 'leave_apply', slots: { type: 'medical' } },
+  { text: '我的假期还剩多少？', role: 'officer', kind: 'leave_balance' },
+  { text: '给我看工资单', role: 'officer', kind: 'payslip' },
+  { text: '加班费怎么算？', role: 'officer', kind: 'ask' },
+  { text: '卸货区4号闸门卡住了怎么办？', role: 'officer', kind: 'ask' },
+  { text: '机器人在哪里？', role: 'supervisor', kind: 'robots_status' },
+  { text: '派清洁机器人去打扫', role: 'supervisor', kind: 'robot_command', slots: { action: 'clean' } },
   { text: 'What is the SOP if the fire panel shows a supervisory fault on L3?', role: 'officer', kind: 'ask' },
   { text: 'How many days of annual leave do I get?', role: 'officer', kind: 'ask' },
   { text: 'How is my overtime calculated?', role: 'officer', kind: 'ask' },

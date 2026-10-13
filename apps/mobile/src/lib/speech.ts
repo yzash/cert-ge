@@ -49,3 +49,30 @@ export function startDictation(lang: string, onText: (t: string) => void, onEnd:
     }
   };
 }
+
+/** Read an answer aloud (web speechSynthesis; Chrome, Edge, Safari on iOS/macOS, Android Chrome). */
+export function ttsSupported(): boolean {
+  return Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window;
+}
+
+export function speak(text: string, lang: string, onEnd?: () => void): () => void {
+  if (!ttsSupported()) { onEnd?.(); return () => {}; }
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  const clean = text.replace(/\s?\[\d+\]/g, '').replace(/[*_#`]/g, '').trim();
+  const u = new SpeechSynthesisUtterance(clean);
+  const tag = LANG[lang] ?? lang;
+  u.lang = tag;
+  const voices = synth.getVoices();
+  const voice = voices.find((v) => v.lang === tag) ?? voices.find((v) => v.lang.startsWith(tag.slice(0, 2)));
+  if (voice) u.voice = voice;
+  u.rate = 1.02;
+  u.onend = () => onEnd?.();
+  u.onerror = () => onEnd?.();
+  synth.speak(u);
+  return () => synth.cancel();
+}
+
+export function stopSpeaking() {
+  if (ttsSupported()) window.speechSynthesis.cancel();
+}

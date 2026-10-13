@@ -4,7 +4,7 @@
  * An invalid output throws; the BFF reports it as a fallback and the app shows the DEMO answer.
  */
 import {
-  ExtractResult, HandoverDraft, ReportDraft, VerifyResult, type FrictionLog, type Sop, type SourceRef, type Theme,
+  ExtractResult, HandoverDraft, PhotoAnalysis, PhotoCategory, ReportDraft, Severity, VerifyResult, type FrictionLog, type Sop, type SourceRef, type Theme,
 } from '@mozart/schema';
 import { z } from 'zod';
 import type { HandoverRequest, SiteContext } from '../types';
@@ -12,7 +12,7 @@ import type { GoogleConfig } from './config';
 import { generateJson } from './gemini';
 import { screenPrompt } from './modelArmor';
 import { Intent } from '../router';
-import { CLUSTER_SYSTEM, EXTRACT_SYSTEM, HANDOVER_SYSTEM, SOP_EDIT_SYSTEM, VERIFY_SYSTEM, schemas } from './prompts';
+import { CLUSTER_SYSTEM, EXTRACT_SYSTEM, HANDOVER_SYSTEM, PHOTO_SYSTEM, SOP_EDIT_SYSTEM, VERIFY_SYSTEM, schemas } from './prompts';
 
 async function guard(cfg: GoogleConfig, token: string, text: string) {
   const v = await screenPrompt(cfg, token, text);
@@ -43,6 +43,31 @@ export async function extractAgent(cfg: GoogleConfig, token: string, transcript:
     conf[k] = Math.max(0, Math.min(1, conf[k] ?? 0.5));
   }
   return ExtractResult.parse({ draft: d, confidence: conf, model: cfg.model, latencyMs: out.latencyMs });
+}
+
+/** Photo-first incident report: Gemini multimodal describes the photo; ids are validated against the register. */
+export async function photoAgent(cfg: GoogleConfig, token: string, image: { mimeType: string; data: string }, req: { note?: string; category?: PhotoCategory; officerZoneId?: string }, ctx: SiteContext): Promise<PhotoAnalysis> {
+  if (req.note) await guard(cfg, token, req.note);
+  const site = ctx.sites.find((s) => s.id === ctx.siteId)!;
+  const zone = site.zones.find((z) => z.id === req.officerZoneId);
+  const prompt = [
+    req.category ? `Officer says the category is: ${req.category}` : '',
+    req.note ? `Officer's note: """${req.note}"""` : '',
+    `SOPs: ${ctx.sops.map((s) => `${s.id}=${s.title}`).join('; ')}`,
+  ].filter(Boolean).join('\n');
+  const out = await generateJson(cfg, token, { model: cfg.model, system: PHOTO_SYSTEM, prompt, image, responseSchema: schemas.photo },
+    z.object({ category: PhotoCategory, observations: z.array(z.string()), title: z.string(), severity: Severity, description: z.string(), recommendedSopId: z.string().nullable(), confidence: z.number() }));
+  const o = out.data;
+  const sopOk = !!o.recommendedSopId && ctx.sops.some((s) => s.id === o.recommendedSopId);
+  const k = Math.max(0, Math.min(1, o.confidence));
+  // location comes from the officer's GPS zone, never from the model
+  return PhotoAnalysis.parse({
+    category: req.category ?? o.category,
+    observations: o.observations.slice(0, 4),
+    draft: { type: 'incident', title: o.title, zoneId: zone?.id ?? null, location: zone?.name ?? null, assetId: null, severity: o.severity, description: o.description, recommendedSopId: sopOk ? o.recommendedSopId : null },
+    confidence: { type: 0.9, title: k, zoneId: zone ? 0.7 : 0, location: zone ? 0.6 : 0, assetId: 0, severity: k * 0.85, description: k, recommendedSopId: sopOk ? k : 0 },
+    model: cfg.model, latencyMs: out.latencyMs,
+  });
 }
 
 export async function verifyAgent(cfg: GoogleConfig, token: string, image: { mimeType: string; data: string }, assetId: string | undefined, ctx: SiteContext): Promise<VerifyResult> {
@@ -109,10 +134,11 @@ export async function sopEditAgent(cfg: GoogleConfig, token: string, theme: Them
 }
 
 const ROUTER_SYSTEM = `You route a Certis officer's chat message to one card. Kinds:
-ask (questions about SOPs, rules, HR policy), brief, tasks, report (something happened/broken), verify (check equipment by camera), handover, friction (something doesn't work),
+ask (questions about SOPs, rules, HR policy), brief, tasks, report (something happened/broken), photo_report (wants to report by taking a photo/picture), verify (check equipment by camera), handover, friction (something doesn't work),
 leave_apply (type, from, to as YYYY-MM-DD), leave_balance, payslip, claim (type, amount), swap (date), roster, licence,
 robots_status, robot_command (action patrol|clean|goto|pause|resume|return_dock, robotId like PR-01/CR-03, robotKind, zoneId),
-approvals, team, alert, themes (supervisor/HQ only). Use null for unknown slots. Policy questions are "ask", not actions.`;
+approvals, team, alert, themes (supervisor/HQ only). Use null for unknown slots. Policy questions are "ask", not actions.
+Messages may be in English, Malay, Chinese or Tamil; route by meaning.`;
 
 /** LIVE router agent (Flash-Lite). Output is validated against the same Intent schema the DEMO router uses. */
 export async function routerAgent(cfg: GoogleConfig, token: string, text: string, ctx: { role: string; now: number; zones: { id: string; name: string }[] }) {

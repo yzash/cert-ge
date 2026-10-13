@@ -7,6 +7,7 @@ import { Button, Chip, Field, Icon, Row, Txt } from '@/components/ui';
 import { LANG_LABEL } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
 import { useApp } from '@/store/app';
+import { CertisLogo } from '@/components/brand';
 
 const emailFor = (name: string) => `${name.toLowerCase().replace(/\s+/g, '.')}@certisgroup.demo`;
 
@@ -35,9 +36,7 @@ export default function SignIn() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: 64, gap: space.lg }} keyboardShouldPersistTaps="handled">
         <View style={{ alignItems: 'center', gap: 6, marginBottom: space.md }}>
-          <View style={{ width: 72, height: 72, borderRadius: 20, backgroundColor: brand.navy, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: brand.orange }}>
-            <Txt v="h1" color="#fff" style={{ fontSize: 34 }}>M</Txt>
-          </View>
+          <CertisLogo height={48} onDark={c.mode === 'dark'} style={{ alignSelf: 'center', marginBottom: 8 }} />
           <Txt v="h2">Mozart Frontline</Txt>
           <Txt v="small">Certis · Officer app</Txt>
         </View>

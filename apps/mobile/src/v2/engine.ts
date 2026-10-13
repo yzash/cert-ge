@@ -4,12 +4,12 @@
  * their own: each one ends in an officer tap that dispatches a confirmed Command.
  */
 import { matchQa, normalize, type Intent } from '@mozart/ai';
-import type { Citation, Officer } from '@mozart/schema';
+import type { Attachment, Citation, Officer } from '@mozart/schema';
 import { getAi, isOnline, useApp } from '@/store/app';
 import { useChat, type AgentId, type CardKind } from './chatStore';
 
 const CARD_FOR: Record<Exclude<Intent['kind'], 'ask'>, CardKind> = {
-  brief: 'brief', tasks: 'tasks', report: 'report', verify: 'verify', handover: 'handover', friction: 'friction',
+  brief: 'brief', tasks: 'tasks', report: 'report', photo_report: 'photo_report', verify: 'verify', handover: 'handover', friction: 'friction',
   leave_apply: 'leave_apply', leave_balance: 'leave_balance', payslip: 'payslip', claim: 'claim', swap: 'swap', roster: 'roster', licence: 'licence',
   robots_status: 'robots_status', robot_command: 'robot_command', approvals: 'approvals', team: 'team', alert: 'alert', themes: 'themes',
 };
@@ -18,6 +18,7 @@ const LEAD: Partial<Record<CardKind, string>> = {
   brief: 'Here’s your shift at a glance.',
   tasks: 'Your open work orders, nearest SLA first.',
   report: 'I’ll draft the report. Check the fields, then submit.',
+  photo_report: 'Take a photo of what you see. I’ll draft the incident report from it.',
   verify: 'Point the camera at the equipment. I’ll compare it with the SOP’s expected state.',
   handover: 'I’ll draft your handover from tonight’s records.',
   friction: 'Tell HQ what doesn’t work. Two taps is enough.',
@@ -62,6 +63,13 @@ export async function sendMessage(threadId: string, text: string, me: Officer, a
     return;
   }
   await streamAnswer(threadId, text, me);
+}
+
+/** Composer camera button: the photo goes into the thread and the photo-report card starts drafting from it. */
+export function sendPhoto(threadId: string, photo: Attachment) {
+  const chat = useChat.getState();
+  chat.push(threadId, { role: 'user', text: 'Report this', data: { photo } });
+  chat.push(threadId, { role: 'assistant', text: 'Got the photo. Drafting the incident report…', card: 'photo_report', data: { photo, auto: true } });
 }
 
 const PRECACHE_DONE = { v: false };

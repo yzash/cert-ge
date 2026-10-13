@@ -1,7 +1,7 @@
 /**
  * v2 (chat-first) run-of-show at /v2. Three tabs = three devices on one world:
  *   F: Faizal (officer)   M: Mei Ling (supervisor)   R: Raj (HQ)
- * Covers chat Q&A, voice report, leave, payslip, friction, approvals, robot detection → officer task,
+ * Covers chat Q&A, voice report, photo incident (camera), Mandarin voice mode, leave, payslip, friction, approvals, robot detection → officer task,
  * HQ SOP change → briefing. Usage: node scripts/run-of-show-v2.mjs [baseUrl] [runs]
  */
 import { chromium } from 'playwright';
@@ -69,6 +69,26 @@ async function run(n) {
     await snap(F, 'report-draft');
     await vis(F.getByRole('button', { name: 'Submit to Mozart' })).click();
     await vis(F.getByText(/Submitted CWO-/)).waitFor();
+
+    step('3b photo incident: phone camera → pregenerated draft → submit');
+    const chooser = F.waitForEvent('filechooser');
+    await vis(F.getByRole('button', { name: 'Take a photo to report' })).click();
+    await (await chooser).setFiles(new URL('./fixtures/phone-photo.jpg', import.meta.url).pathname);
+    await vis(F.getByText(/Draft in/)).waitFor({ timeout: 15000 });
+    await vis(F.getByText('What I see')).waitFor();
+    await F.waitForTimeout(500);
+    await snap(F, 'photo-incident-draft');
+    await vis(F.getByRole('button', { name: 'Submit incident' })).click();
+    await vis(F.getByText(/Incident INC-\d+ submitted with photo/)).waitFor();
+
+    step('3c voice mode in Mandarin (demo prompt) with read-aloud');
+    await vis(F.getByRole('button', { name: 'Voice mode' })).click();
+    await vis(F.getByRole('button', { name: 'Chinese' })).click();
+    await vis(F.getByRole('button', { name: 'Say: 卸货区4号闸门卡住了怎么办？' })).click();
+    await vis(F.getByText(/K-07/)).waitFor({ timeout: 20000 });
+    await F.waitForTimeout(1500);
+    await snap(F, 'voice-mode-zh');
+    await vis(F.getByRole('button', { name: 'Close voice mode' })).click();
 
     step('4 leave + payslip');
     await say(F, 'Apply annual leave next friday for 2 days');

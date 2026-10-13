@@ -11,6 +11,7 @@ import { ago, clock } from '@/lib/format';
 import { useView } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { getAi, useApp } from '@/store/app';
+import { CertisLogo } from '@/components/brand';
 
 const CATS: (FrictionCategory | 'all')[] = ['all', 'sop', 'equipment', 'safety', 'access', 'tooling'];
 const DECISION_LABEL: Record<ThemeDecision, string> = { changeSop: 'SOP changed', fixEquipment: 'Equipment fix', noChange: 'No change' };
@@ -59,7 +60,7 @@ function HQBody({ wide, width }: { wide: boolean; width: number }) {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {/* top bar */}
       <View style={{ backgroundColor: brand.navy, paddingHorizontal: space.xl, paddingVertical: space.md, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: brand.orange, alignItems: 'center', justifyContent: 'center' }}><Txt v="bodyStrong" color="#fff">M</Txt></View>
+        <CertisLogo height={24} onDark />
         <View style={{ flex: 1, minWidth: 200 }}>
           <Txt v="title" color="#fff">Mozart Frontline · HQ feedback</Txt>
           <Txt v="caption" color="#B9C8DC">Raj Kumar · Head of Security Operations · 4 sites</Txt>

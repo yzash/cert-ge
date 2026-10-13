@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { device } from '@/store/storage';
 
 export type CardKind =
-  | 'answer' | 'brief' | 'tasks' | 'report' | 'verify' | 'handover' | 'friction'
+  | 'answer' | 'brief' | 'tasks' | 'report' | 'photo_report' | 'verify' | 'handover' | 'friction'
   | 'leave_apply' | 'leave_balance' | 'payslip' | 'claim' | 'swap' | 'roster' | 'licence'
   | 'robots_status' | 'robot_command' | 'robot_task' | 'approvals' | 'team' | 'alert' | 'themes' | 'notice';
 
@@ -62,6 +62,13 @@ interface ChatState {
 }
 
 const KEY = 'mozart.v2.chats';
+
+/** Camera photos are ~100 KB each: keep them in memory for the session, not in device storage (the submitted record keeps its copy). */
+function slimData(d?: Record<string, unknown>) {
+  if (!d) return d;
+  const photo = d.photo as { uri?: string } | undefined;
+  return photo?.uri?.startsWith('data:') ? { ...d, photo: { ...photo, uri: 'fixture://photo-kept-on-record' } } : d;
+}
 let timer: ReturnType<typeof setTimeout> | null = null;
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -71,7 +78,7 @@ export const useChat = create<ChatState>((set, get) => {
     timer = setTimeout(() => {
       const { threads, surfaced, currentId } = get();
       // never persist streaming state or large inline photos
-      const slim = threads.slice(0, 20).map((t) => ({ ...t, messages: t.messages.slice(-60).map((m) => ({ ...m, streaming: false })) }));
+      const slim = threads.slice(0, 20).map((t) => ({ ...t, messages: t.messages.slice(-60).map((m) => ({ ...m, streaming: false, data: slimData(m.data) })) }));
       void device.set(KEY, JSON.stringify({ threads: slim, surfaced: surfaced.slice(-300), currentId }));
     }, 250);
   };
