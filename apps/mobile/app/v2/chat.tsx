@@ -55,7 +55,8 @@ export default function Chat() {
   const online = useOnline();
   const insets = useSafeAreaInsets();
   const mode = useApp((x) => x.settings.aiMode);
-  const lang = useApp((x) => x.settings.lang);
+  const voiceLang = useApp((x) => x.settings.voiceLang ?? 'en');
+  const setSettings = useApp((x) => x.setSettings);
   const setDrawer = useShell((x) => x.setDrawer);
   const threads = useChat((x) => x.threads);
   const currentId = useChat((x) => x.currentId);
@@ -88,7 +89,7 @@ export default function Chat() {
   };
   const mic = () => {
     if (listening) { listening(); setListening(null); return; }
-    if (speechSupported()) setListening(() => startDictation(lang, setInput, () => setListening(null)));
+    if (speechSupported()) setListening(() => startDictation(voiceLang, setInput, () => setListening(null)));
     else void send('Report something by voice');
   };
 
@@ -104,7 +105,7 @@ export default function Chat() {
         <TextInput
           value={input}
           onChangeText={setInput}
-          placeholder={listening ? 'Listening…' : wide ? `Ask ${agent.name} anything, or tell it what to do` : `Ask ${agent.name}`}
+          placeholder={listening ? (voiceLang === 'zh' ? '正在听（普通话）…' : 'Listening…') : wide ? `Ask ${agent.name} anything, or tell it what to do` : `Ask ${agent.name}`}
           placeholderTextColor={c.textFaint}
           multiline
           onKeyPress={(e) => {
@@ -115,6 +116,11 @@ export default function Chat() {
           style={{ flex: 1, minHeight: 44, maxHeight: 160, paddingVertical: 11, fontSize: 16, fontFamily: v2.font.regular, color: c.text, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) } as never}
         />
         <IconBtn icon="camera-outline" label="Take a photo to report" onPress={() => void photo()} />
+        <Pressable accessibilityRole="button" accessibilityLabel={voiceLang === 'zh' ? 'Mic language: Mandarin. Switch to English' : 'Mic language: English. Switch to Mandarin'}
+          onPress={() => { listening?.(); setListening(null); setSettings({ voiceLang: voiceLang === 'zh' ? 'en' : 'zh' }); }}
+          style={{ height: 30, minWidth: 34, paddingHorizontal: 8, borderRadius: 15, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', backgroundColor: voiceLang === 'zh' ? c.orangeSoft : c.sunken }}>
+          <Text style={{ fontFamily: v2.font.semibold, fontSize: 12, color: voiceLang === 'zh' ? c.orange : c.textMuted }}>{voiceLang === 'zh' ? '中文' : 'EN'}</Text>
+        </Pressable>
         <IconBtn icon={listening ? 'stop-circle' : 'mic-outline'} color={listening ? c.fail : c.textMuted} label={listening ? 'Stop dictation' : 'Speak'} onPress={mic} />
         {input.trim() ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Send message" onPress={() => void send()} disabled={busy}
@@ -122,7 +128,7 @@ export default function Chat() {
             <Ionicons name="arrow-up" size={22} color={c.onOrange} />
           </Pressable>
         ) : (
-          <Pressable accessibilityRole="button" accessibilityLabel="Voice mode" onPress={() => setVoice(lang === 'zh' ? 'zh' : 'en')}
+          <Pressable accessibilityRole="button" accessibilityLabel="Voice mode" onPress={() => setVoice(voiceLang)}
             style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.navy, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="pulse" size={22} color={c.onNavy} />
           </Pressable>
@@ -177,7 +183,7 @@ export default function Chat() {
             <FadeIn delay={140}>
               <Row wrap gap={8} style={{ justifyContent: 'center' }}>
                 {(SUGGEST[me.role] ?? SUGGEST.officer).map((x) => (
-                  <Pressable key={x.label} onPress={() => (x.text === '__voice__' ? setVoice('zh') : void send(x.text))} accessibilityRole="button"
+                  <Pressable key={x.label} onPress={() => (x.text === '__voice__' ? (setSettings({ voiceLang: 'zh' }), setVoice('zh')) : void send(x.text))} accessibilityRole="button"
                     style={({ hovered }: { hovered?: boolean }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, height: 40, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: hovered ? c.sunken : c.surface })}>
                     <Ionicons name={x.icon} size={16} color={c.textMuted} />
                     <Text style={{ fontFamily: v2.font.medium, fontSize: 14, color: c.text }}>{x.label}</Text>

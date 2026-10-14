@@ -24,6 +24,8 @@ export interface Settings {
   bffUrl: string;
   /** v2 (chat-first) appearance; light by default, dark for night shift */
   v2Theme: 'light' | 'dark';
+  /** language the mic listens in (speech recognition can't auto-detect): English or Mandarin */
+  voiceLang: 'en' | 'zh';
 }
 
 export interface Session {
@@ -85,6 +87,7 @@ const defaultSettings: Settings = {
   backend: 'local',
   bffUrl: ENV_BFF,
   v2Theme: 'light',
+  voiceLang: 'en',
 };
 
 let server: Server = createLocalServer();

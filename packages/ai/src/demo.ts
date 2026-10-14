@@ -183,7 +183,7 @@ export function createDemoProvider(opts: { pace?: number } = {}): AiProvider {
       for (const [k, v] of Object.entries(p.confidence)) confidence[k] = v ?? 0;
       const r: PhotoAnalysis = {
         category, observations: [...p.observations], confidence, model: 'demo-pregenerated-photo', latencyMs: Date.now() - t0,
-        draft: { ...p.draft, zoneId: zone?.id ?? null, location: zone?.name ?? null, description: req.note ? `${p.draft.description} Officer note: ${req.note}` : p.draft.description },
+        draft: { ...p.draft, zoneId: zone?.id ?? null, location: zone?.name ?? null, description: req.note && !/\b(report|photo|picture|pic)\b|拍照|照片/i.test(req.note) ? `${p.draft.description} Officer note: ${req.note}` : p.draft.description },
       };
       return { ...r, meta: META };
     },

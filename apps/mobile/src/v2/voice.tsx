@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { speak, speechSupported, startDictation, stopSpeaking, ttsSupported } from '@/lib/speech';
 import { useChat, type AgentId, type CardKind } from './chatStore';
 import { sendMessage } from './engine';
+import { useApp } from '@/store/app';
 import { T, useV2 } from './ui';
 
 export type VoiceLang = 'en' | 'zh';
@@ -67,6 +68,7 @@ export function VoiceMode({ threadId, me, agent, initialLang = 'en', onClose }: 
   const insets = useSafeAreaInsets();
   const [lang, setLang] = useState<VoiceLang>(initialLang);
   const [phase, setPhase] = useState<Phase>('idle');
+  const [wrongLang, setWrongLang] = useState(false);
   const [heard, setHeard] = useState('');
   const [reply, setReply] = useState('');
   const [simulated, setSimulated] = useState(false);
@@ -113,8 +115,11 @@ export function VoiceMode({ threadId, me, agent, initialLang = 'en', onClose }: 
     setHeard(''); heardRef.current = '';
     setReply('');
     setPhase('listening');
+    setWrongLang(false);
     stopRec.current = startDictation(lang, (t) => { heardRef.current = t; setHeard(t); }, () => {
       stopRec.current = null;
+      // the browser ignored zh-CN and transcribed in English (seen on iOS when Siri is set to English)
+      if (lang === 'zh' && heardRef.current.trim() && !/[\u4e00-\u9fff]/.test(heardRef.current)) setWrongLang(true);
       if (!cancelled.current) void submit(heardRef.current);
     });
   }
@@ -158,7 +163,7 @@ export function VoiceMode({ threadId, me, agent, initialLang = 'en', onClose }: 
           <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 999, padding: 4 }}>
             {(['en', 'zh'] as const).map((l) => (
               <Pressable key={l} accessibilityRole="button" accessibilityLabel={l === 'en' ? 'English' : 'Chinese'} accessibilityState={{ selected: lang === l }}
-                onPress={() => { stopRec.current?.(); stopSpeaking(); setLang(l); setPhase('idle'); setHeard(''); setReply(''); }}
+                onPress={() => { stopRec.current?.(); stopSpeaking(); setLang(l); useApp.getState().setSettings({ voiceLang: l }); setWrongLang(false); setPhase('idle'); setHeard(''); setReply(''); }}
                 style={{ paddingHorizontal: 16, height: 36, borderRadius: 999, justifyContent: 'center', backgroundColor: lang === l ? '#fff' : 'transparent' }}>
                 <Text style={{ fontFamily: v2.font.semibold, fontSize: 14, color: lang === l ? bg : 'rgba(255,255,255,0.8)' }}>{l === 'en' ? 'English' : '中文'}</Text>
               </Pressable>
@@ -195,6 +200,15 @@ export function VoiceMode({ threadId, me, agent, initialLang = 'en', onClose }: 
             </View>
           ) : null}
         </View>
+
+        {wrongLang ? (
+          <View style={{ backgroundColor: 'rgba(245,130,32,0.16)', borderRadius: 14, padding: 12, marginBottom: 8 }}>
+            <Text style={{ color: '#fff', fontFamily: v2.font.semibold, fontSize: 14 }}>听到的是英文 · The browser returned English</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontFamily: v2.font.regular, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
+              iPhone: Settings → Siri → Language → 普通话 (中国大陆), and add the Chinese keyboard; open in Safari. Android: use Chrome and add 中文 under Google → Voice. Or tap a demo prompt below.
+            </Text>
+          </View>
+        ) : null}
 
         {/* demo prompts */}
         <View style={{ gap: 8, marginTop: 8 }}>
